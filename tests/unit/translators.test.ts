@@ -136,23 +136,25 @@ describe('Translators', () => {
     });
 
     it('should handle timeout', async () => {
-      // Mock a delayed response that will timeout
-      mockFetch.mockImplementationOnce(() => 
-        new Promise((_, reject) => {
-          const timeout = setTimeout(() => {
-            const error = new Error('Request aborted');
-            (error as any).name = 'AbortError';
-            reject(error);
-          }, 150);
-          // Clear timeout to avoid Jest warnings
-          setTimeout(() => clearTimeout(timeout), 200);
-        })
-      );
+      // Mock a delayed response that will timeout - need 3 for retries
+      for (let i = 0; i < 3; i++) {
+        mockFetch.mockImplementationOnce(() => 
+          new Promise((_, reject) => {
+            const timeout = setTimeout(() => {
+              const error = new Error('Request aborted');
+              (error as any).name = 'AbortError';
+              reject(error);
+            }, 150);
+            // Clear timeout to avoid Jest warnings
+            setTimeout(() => clearTimeout(timeout), 200);
+          })
+        );
+      }
 
       const translator = new OllamaTranslator({ timeout: 100 });
       
       await expect(translator.translate(['Hello'], 'es'))
-        .rejects.toThrow('Ollama request timed out after 100ms');
+        .rejects.toThrow('Translation failed after 3 attempts: Ollama request timed out after 100ms');
     });
 
     it('should validate response length', async () => {
@@ -162,12 +164,15 @@ describe('Translators', () => {
           response: '["Hola"]' // Only one translation for two inputs
         })
       };
-      mockFetch.mockResolvedValueOnce(mockResponse as any);
+      // Mock will be called 3 times due to retries
+      for (let i = 0; i < 3; i++) {
+        mockFetch.mockResolvedValueOnce(mockResponse as any);
+      }
 
       const translator = new OllamaTranslator();
       
       await expect(translator.translate(['Hello', 'World'], 'es'))
-        .rejects.toThrow('Translation count mismatch: expected 2, got 1');
+        .rejects.toThrow('Translation failed after 3 attempts: Translation count mismatch: expected 2, got 1');
     });
 
     it('should list available models', async () => {

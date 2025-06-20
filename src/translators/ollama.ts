@@ -12,6 +12,7 @@ export class OllamaTranslator extends BaseTranslator {
   private baseUrl: string;
   private model: string;
   private timeout: number;
+  private maxRetries: number = 3;
   
   constructor(config: OllamaConfig = {}) {
     super();
@@ -21,6 +22,33 @@ export class OllamaTranslator extends BaseTranslator {
   }
   
   async translate(strings: string[], targetLang: string): Promise<string[]> {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+      try {
+        const result = await this.attemptTranslation(strings, targetLang);
+        return result;
+      } catch (error: any) {
+        lastError = error;
+        if (process.env.OLLAMA_VERBOSE === 'true' || process.argv.includes('--verbose')) {
+          console.error(`[Ollama] Attempt ${attempt}/${this.maxRetries} failed: ${error.message}`);
+        }
+        
+        if (attempt < this.maxRetries) {
+          // Wait before retrying (exponential backoff)
+          const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+          if (process.env.OLLAMA_VERBOSE === 'true' || process.argv.includes('--verbose')) {
+            console.error(`[Ollama] Waiting ${waitTime}ms before retry...`);
+          }
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+      }
+    }
+    
+    throw new Error(`Translation failed after ${this.maxRetries} attempts: ${lastError?.message || 'Unknown error'}`);
+  }
+  
+  private async attemptTranslation(strings: string[], targetLang: string): Promise<string[]> {
     // For DeepSeek-R1, we need to format the prompt in their expected format
     const isDeepSeek = this.model.includes('deepseek');
     
@@ -34,11 +62,22 @@ export class OllamaTranslator extends BaseTranslator {
     let prompt: string;
     if (isDeepSeek) {
       // DeepSeek format with explicit user/assistant markers
-      prompt = `<｜User｜>Translate these ${strings.length} strings from English to ${targetLang}. Return ONLY a JSON array [] with the translations in the exact same order as the input. Keep placeholders like {{var}} or {0} unchanged.
+      prompt = `<｜User｜>Translate these ${strings.length} strings from English to ${targetLang}.
 
-Example: If input is ["Hello", "World"], output should be ["Hola", "Mundo"]
+CRITICAL INSTRUCTIONS:
+1. Return ONLY a valid JSON array [] containing the translations
+2. The array MUST have exactly ${strings.length} strings
+3. Maintain the EXACT same order as the input
+4. Preserve ALL placeholders unchanged (like {{var}}, {0}, %s, etc.)
+5. Do NOT add any text before or after the JSON
+6. Do NOT wrap the array in an object
 
-Input: ${JSON.stringify(strings, null, 2)}
+Example:
+Input: ["Hello", "Welcome {{name}}"]
+Output: ["Hola", "Bienvenido {{name}}"]
+
+Input to translate:
+${JSON.stringify(strings, null, 2)}
 <｜Assistant｜>`;
     } else {
       // Generic format for other models
@@ -117,39 +156,96 @@ Output:`;
       
       // Extract JSON from the response
       let translations: string[];
-      try {
-        // Try to parse the entire response as JSON
-        const parsed = JSON.parse(responseText);
-        
-        // Check if it's an array or object with translations property
-        if (Array.isArray(parsed)) {
-          translations = parsed;
-        } else if (typeof parsed === 'object' && parsed !== null) {
-          // Check if it has a translations property
-          if (parsed.translations && Array.isArray(parsed.translations)) {
-            translations = parsed.translations;
-          } else {
-            // If it's an object, extract values in order of input strings
-            translations = strings.map(str => parsed[str] || str);
-          }
-        } else {
-          throw new Error('Invalid JSON response format');
+      
+      // First, try to extract just the JSON part from the response
+      // Handle cases where LLM adds text before/after JSON
+      let jsonString = responseText.trim();
+      
+      // Common patterns where LLMs add extra text
+      const patterns = [
+        /Here (?:is|are) the translations?:?\s*(\{[\s\S]*\}|\[[\s\S]*\])/i,
+        /The translations? (?:is|are):?\s*(\{[\s\S]*\}|\[[\s\S]*\])/i,
+        /```json\s*([\s\S]*?)\s*```/,
+        /```\s*([\s\S]*?)\s*```/,
+        /(\{[\s\S]*\}|\[[\s\S]*\])/, // Just find JSON anywhere
+      ];
+      
+      for (const pattern of patterns) {
+        const match = responseText.match(pattern);
+        if (match) {
+          jsonString = match[1] || match[0];
+          break;
         }
-      } catch (e) {
-        // If that fails, try to extract JSON array from the response
-        const jsonMatch = responseText.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          translations = JSON.parse(jsonMatch[0]);
-        } else {
-          // Try to extract JSON object
-          const objectMatch = responseText.match(/\{[\s\S]*\}/);
+      }
+      
+      // Try multiple JSON extraction strategies
+      const extractionStrategies = [
+        // Strategy 1: Parse the cleaned string directly
+        () => {
+          const parsed = JSON.parse(jsonString);
+          if (Array.isArray(parsed)) {
+            return parsed;
+          } else if (parsed.translations && Array.isArray(parsed.translations)) {
+            return parsed.translations;
+          }
+          throw new Error('Not a valid translation format');
+        },
+        
+        // Strategy 2: Find array pattern
+        () => {
+          const arrayMatch = jsonString.match(/\[\s*"[^"]*"(?:\s*,\s*"[^"]*")*\s*\]/);
+          if (arrayMatch) {
+            return JSON.parse(arrayMatch[0]);
+          }
+          throw new Error('No array found');
+        },
+        
+        // Strategy 3: Find object with translations
+        () => {
+          const objectMatch = jsonString.match(/\{\s*"translations"\s*:\s*\[[^\]]*\]\s*\}/);
           if (objectMatch) {
             const parsed = JSON.parse(objectMatch[0]);
-            translations = strings.map(str => parsed[str] || str);
-          } else {
-            throw new Error('Could not extract valid JSON from Ollama response');
+            return parsed.translations;
+          }
+          throw new Error('No translations object found');
+        },
+        
+        // Strategy 4: Try to fix common JSON errors
+        () => {
+          // Fix unescaped quotes in values
+          let fixed = jsonString.replace(/"([^"]*)":\s*"([^"]*(?:\\.[^"]*)*)"/g, (match: string, key: string, value: string) => {
+            const fixedValue = value.replace(/(?<!\\)"/g, '\\"');
+            return `"${key}": "${fixedValue}"`;
+          });
+          
+          const parsed = JSON.parse(fixed);
+          if (Array.isArray(parsed)) {
+            return parsed;
+          } else if (parsed.translations && Array.isArray(parsed.translations)) {
+            return parsed.translations;
+          }
+          throw new Error('Fixed JSON still not valid');
+        }
+      ];
+      
+      let lastError: Error | null = null;
+      for (const strategy of extractionStrategies) {
+        try {
+          translations = strategy();
+          if (process.env.OLLAMA_VERBOSE === 'true' || process.argv.includes('--verbose')) {
+            console.error(`[Ollama] Successfully extracted translations using strategy`);
+          }
+          break;
+        } catch (e: any) {
+          lastError = e;
+          if (process.env.OLLAMA_VERBOSE === 'true' || process.argv.includes('--verbose')) {
+            console.error(`[Ollama] Extraction strategy failed: ${e.message}`);
           }
         }
+      }
+      
+      if (!translations!) {
+        throw new Error(`Could not extract valid translations from response. Last error: ${lastError?.message}`);
       }
       
       this.validateResponse(strings, translations);
