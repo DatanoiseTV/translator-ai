@@ -43,7 +43,6 @@ type TranslationCache = { [sourceFilePath: string]: CacheEntry };
 
 // --- CONSTANTS ---
 const MAX_BATCH_SIZE = 100;
-const MODEL_NAME = "gemini-2.0-flash-lite";
 
 // --- HELPER FUNCTIONS ---
 async function loadCache(cacheFilePath: string): Promise<TranslationCache> {
@@ -210,7 +209,7 @@ function printStats(stats: PerformanceStats | MultiFileStats, spinner: Ora, isCa
     - Stale Strings Pruned:   ${stats.prunedStrings}`);
   }
 
-  console.log(`  - Translation (${MODEL_NAME}):
+  console.log(`  - Translation:
     - Batches Sent to API:    ${stats.batchCount} (target size: ~${stats.targetBatchSize})
     - Total API Time:         ${formatMs(stats.totalTranslationTime)}`);
 
@@ -484,7 +483,7 @@ async function processSingleFile(
   if (includeMetadata) {
     outputJson = {
       "_translator_metadata": {
-        "tool": "translator-ai v1.0.10",
+        "tool": "translator-ai v1.1.0",
         "repository": "https://github.com/DatanoiseTV/translator-ai",
         "provider": translator.name,
         "source_language": detectSource ? sourceLang : "English",
@@ -893,7 +892,7 @@ async function processMultipleFiles(
     if (includeMetadata) {
       outputJson = {
         "_translator_metadata": {
-          "tool": "translator-ai v1.0.10",
+          "tool": "translator-ai v1.1.0",
           "repository": "https://github.com/DatanoiseTV/translator-ai",
           "provider": translator.name,
           "source_language": detectSource ? sourceLang : "English",
@@ -994,7 +993,7 @@ async function main() {
   }
   
   program
-    .version('1.0.10')
+    .version('1.1.0')
     .description('Translate JSON i18n files efficiently with caching and deduplication.')
     .argument('<inputFiles...>', 'Path(s) to source JSON file(s) or glob patterns')
     .requiredOption('-l, --lang <langCodes>', 'Target language code(s), comma-separated for multiple')
@@ -1003,7 +1002,7 @@ async function main() {
     .option('--stats', 'Show detailed statistics')
     .option('--no-cache', 'Disable translation cache')
     .option('--cache-file <path>', 'Custom cache file path', getDefaultCacheFilePath())
-    .option('--provider <type>', 'Translation provider: gemini or ollama', 'gemini')
+    .option('--provider <type>', 'Translation provider: gemini, ollama, or openai', 'gemini')
     .option('--ollama-url <url>', 'Ollama API URL', 'http://localhost:11434')
     .option('--ollama-model <model>', 'Ollama model name', 'deepseek-r1:latest')
     .option('--list-providers', 'List available translation providers')
@@ -1014,12 +1013,14 @@ async function main() {
     .option('--metadata', 'Add translation metadata to output files (may break some i18n parsers)')
     .option('--sort-keys', 'Sort output JSON keys alphabetically')
     .option('--check-keys', 'Verify all source keys exist in output (exit with error if keys are missing)')
+    .option('--gemini-model <model>', 'Gemini model to use', 'gemini-2.0-flash-lite')
+    .option('--openai-model <model>', 'OpenAI model to use', 'gpt-4o-mini')
     .parse(process.argv);
 
   const inputFiles = program.args;
   const { 
     lang, output, stdout, stats: showStats, cache, cacheFile,
-    provider, ollamaUrl, ollamaModel, detectSource, dryRun, verbose, preserveFormats: shouldPreserveFormats,
+    provider, ollamaUrl, ollamaModel, geminiModel, openaiModel, detectSource, dryRun, verbose, preserveFormats: shouldPreserveFormats,
     metadata, sortKeys, checkKeys
   } = program.opts();
 
@@ -1048,6 +1049,8 @@ async function main() {
       type: provider as TranslatorType,
       ollamaBaseUrl: ollamaUrl,
       ollamaModel: ollamaModel,
+      geminiModel: geminiModel,
+      openaiModel: openaiModel,
     });
     console.log(`Using translation provider: ${translator.name}\n`);
   } catch (error) {
