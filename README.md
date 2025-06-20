@@ -4,11 +4,11 @@
 [![npm version](https://badge.fury.io/js/translator-ai.svg)](https://www.npmjs.com/package/translator-ai)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?style=flat-square&logo=buy-me-a-coffee)](https://coff.ee/datanoisetv)
 
-Fast and efficient JSON i18n translator powered by Google Gemini API with incremental caching support.
+Fast and efficient JSON i18n translator supporting multiple AI providers (Google Gemini & Ollama/DeepSeek) with intelligent caching, multi-file deduplication, and MCP integration.
 
 ## Features
 
-- **Fast Translation**: Leverages Google's Gemini 2.0 Flash Lite model for quick translations
+- **Multiple AI Providers**: Choose between Google Gemini (cloud) or Ollama/DeepSeek (local) for translations
 - **Multi-File Support**: Process multiple files with automatic deduplication to save API calls
 - **Incremental Caching**: Only translates new or modified strings, dramatically reducing API calls
 - **Batch Processing**: Intelligently batches translations for optimal performance
