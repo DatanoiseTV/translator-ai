@@ -1,5 +1,7 @@
 # translator-ai
 
+[![CI](https://github.com/DatanoiseTV/translator-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/DatanoiseTV/translator-ai/actions/workflows/ci.yml)
+[![npm version](https://badge.fury.io/js/translator-ai.svg)](https://www.npmjs.com/package/translator-ai)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?style=flat-square&logo=buy-me-a-coffee)](https://coff.ee/datanoisetv)
 
 Fast and efficient JSON i18n translator powered by Google Gemini API with incremental caching support.

@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build
+      run: npm run build
+    
+    - name: Setup Ollama
+      run: |
+        curl -fsSL https://ollama.com/install.sh | sh
+        # Start Ollama service
+        ollama serve &
+        # Wait for Ollama to start
+        sleep 5
+        # Pull the model we use for testing
+        ollama pull deepseek-r1:latest
+    
+    - name: Run all tests
+      run: npm test
+      env:
+        # Optionally set GEMINI_API_KEY if you add it as a repository secret
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    
+    - name: Test coverage
+      run: npm run test:coverage
+      if: matrix.node-version == '20.x'
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      if: matrix.node-version == '20.x'
+      with:
+        file: ./coverage/lcov.info
+        flags: unittests
+        name: codecov-umbrella
