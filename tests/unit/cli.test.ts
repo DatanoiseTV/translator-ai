@@ -7,7 +7,7 @@ describe('CLI Argument Parsing', () => {
   beforeEach(() => {
     program = new Command();
     program
-      .version('1.0.1')
+      .version('1.0.2')
       .description('A CLI tool to translate and synchronize JSON i18n files.')
       .argument('<inputFile>', 'Path to the source English JSON file.')
       .requiredOption('-l, --lang <langCode>', 'The target language code.')
@@ -93,7 +93,7 @@ describe('CLI Argument Parsing', () => {
     const args = ['node', 'translator-gemini', '--version'];
     
     // exitOverride causes it to throw with the version string
-    expect(() => program.parse(args)).toThrow('1.0.1');
+    expect(() => program.parse(args)).toThrow('1.0.2');
     
     mockLog.mockRestore();
   });

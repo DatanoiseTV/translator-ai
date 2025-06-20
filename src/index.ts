@@ -176,7 +176,7 @@ async function main() {
 
   const program = new Command();
   program
-    .version('1.0.1')
+    .version('1.0.2')
     .description('A CLI tool to translate and synchronize JSON i18n files.')
     .argument('<inputFile>', 'Path to the source English JSON file.')
     .requiredOption('-l, --lang <langCode>', 'The target language code.')

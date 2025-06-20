@@ -1,6 +1,6 @@
 {
   "name": "translator-gemini",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Fast and efficient JSON i18n translator powered by Google Gemini API with incremental caching support",
   "main": "dist/index.js",
   "bin": {
