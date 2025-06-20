@@ -136,8 +136,8 @@ describe('Translators', () => {
     });
 
     it('should handle timeout', async () => {
-      // Mock a delayed response that will timeout - need 3 for retries
-      for (let i = 0; i < 3; i++) {
+      // Mock a delayed response that will timeout - need 5 for retries
+      for (let i = 0; i < 5; i++) {
         mockFetch.mockImplementationOnce(() => 
           new Promise((_, reject) => {
             const timeout = setTimeout(() => {
@@ -154,8 +154,8 @@ describe('Translators', () => {
       const translator = new OllamaTranslator({ timeout: 100 });
       
       await expect(translator.translate(['Hello'], 'es'))
-        .rejects.toThrow('Translation failed after 3 attempts: Ollama request timed out after 100ms');
-    });
+        .rejects.toThrow('Translation failed after 5 attempts: Ollama request timed out after 100ms');
+    }, 30000); // Increase test timeout for 5 retries
 
     it('should validate response length', async () => {
       const mockResponse = {
@@ -164,16 +164,16 @@ describe('Translators', () => {
           response: '["Hola"]' // Only one translation for two inputs
         })
       };
-      // Mock will be called 3 times due to retries
-      for (let i = 0; i < 3; i++) {
+      // Mock will be called 5 times due to retries
+      for (let i = 0; i < 5; i++) {
         mockFetch.mockResolvedValueOnce(mockResponse as any);
       }
 
       const translator = new OllamaTranslator();
       
       await expect(translator.translate(['Hello', 'World'], 'es'))
-        .rejects.toThrow('Translation failed after 3 attempts: Translation count mismatch: expected 2, got 1');
-    });
+        .rejects.toThrow('Translation failed after 5 attempts: Translation count mismatch: expected 2, got 1');
+    }, 30000); // Increase test timeout for 5 retries
 
     it('should list available models', async () => {
       const mockResponse = {
