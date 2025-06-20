@@ -100,7 +100,8 @@ Options:
   --detect-source             Auto-detect source language instead of assuming English
   --dry-run                   Preview what would be translated without making API calls
   --preserve-formats          Preserve URLs, emails, numbers, dates, and other formats
-  --no-metadata               Disable adding metadata to output files
+  --metadata                  Add translation metadata to output files (may break some i18n parsers)
+  --sort-keys                 Sort output JSON keys alphabetically
   -h, --help                  Display help
   -V, --version               Display version
 
@@ -184,11 +185,11 @@ translator-ai en.json -l es -o es.json --dry-run
 # Preserve formats (URLs, emails, dates, numbers, template variables)
 translator-ai app.json -l fr -o app-fr.json --preserve-formats
 
-# Include translation metadata (enabled by default)
-translator-ai en.json -l fr -o fr.json
+# Include translation metadata (disabled by default to ensure compatibility)
+translator-ai en.json -l fr -o fr.json --metadata
 
-# Disable metadata for cleaner output
-translator-ai en.json -l fr -o fr.json --no-metadata
+# Sort keys alphabetically for consistent output
+translator-ai en.json -l fr -o fr.json --sort-keys
 
 # Combine features
 translator-ai src/**/*.json -l es,fr,de -o "{dir}/{name}.{lang}.json" \
@@ -197,7 +198,7 @@ translator-ai src/**/*.json -l es,fr,de -o "{dir}/{name}.{lang}.json" \
 
 ### Translation Metadata
 
-By default, translator-ai adds metadata to help track translations:
+When enabled with the `--metadata` flag, translator-ai adds metadata to help track translations:
 
 ```json
 {
@@ -216,7 +217,20 @@ By default, translator-ai adds metadata to help track translations:
 }
 ```
 
-Use `--no-metadata` to disable this feature.
+Metadata is disabled by default to ensure compatibility with i18n parsers. Use `--metadata` to enable it.
+
+### Key Sorting
+
+Use the `--sort-keys` flag to sort all JSON keys alphabetically in the output:
+
+```bash
+translator-ai en.json -l es -o es.json --sort-keys
+```
+
+This ensures consistent ordering across translations and makes diffs cleaner. Keys are sorted:
+- Case-insensitively (a, B, c, not B, a, c)
+- Recursively through all nested objects
+- Arrays maintain their element order
 
 ### Supported Language Codes
 

@@ -34,7 +34,7 @@ describe('Metadata Feature', () => {
     }
   });
 
-  it('should add metadata by default', async () => {
+  it('should add metadata when --metadata flag is used', async () => {
     // Mock the translation
     const mockTranslate = jest.fn().mockResolvedValue(["Hola", "Adiós"]);
     
@@ -58,7 +58,7 @@ describe('Metadata Feature', () => {
     expect(metadata._translator_metadata.total_strings).toBe(2);
   });
 
-  it('should not add metadata when --no-metadata flag is used', async () => {
+  it('should not add metadata by default', async () => {
     // Mock translation without metadata
     const outputWithoutMetadata = {
       greeting: "Hola",
