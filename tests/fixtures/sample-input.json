@@ -1,0 +1,8 @@
+{
+  "greeting": "Hello",
+  "farewell": "Goodbye",
+  "nested": {
+    "message": "Welcome",
+    "items": ["First", "Second"]
+  }
+}
