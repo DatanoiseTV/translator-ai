@@ -1,5 +1,6 @@
 import { GeminiTranslator } from '../../src/translators/gemini';
 import { OllamaTranslator } from '../../src/translators/ollama';
+import { OpenAITranslator } from '../../src/translators/openai';
 import { TranslatorFactory } from '../../src/translators/factory';
 import fetch from 'node-fetch';
 
@@ -195,10 +196,95 @@ describe('Translators', () => {
     });
   });
 
+  describe('OpenAITranslator', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should create instance with API key', () => {
+      const translator = new OpenAITranslator('test-api-key');
+      expect(translator.name).toBe('OpenAI');
+    });
+
+    it('should check availability based on API key', async () => {
+      process.env.OPENAI_API_KEY = 'test-key';
+      const translator = new OpenAITranslator('test-key');
+      expect(await translator.isAvailable()).toBe(true);
+      delete process.env.OPENAI_API_KEY;
+    });
+
+    it('should translate strings correctly', async () => {
+      const mockResponse = {
+        ok: true,
+        json: async () => ({
+          choices: [{
+            message: {
+              content: '["Hola", "Mundo"]'
+            }
+          }]
+        })
+      };
+      mockFetch.mockResolvedValueOnce(mockResponse as any);
+
+      const translator = new OpenAITranslator('test-key');
+      const result = await translator.translate(['Hello', 'World'], 'es');
+      
+      expect(result).toEqual(['Hola', 'Mundo']);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.openai.com/v1/chat/completions',
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Authorization': 'Bearer test-key'
+          })
+        })
+      );
+    });
+
+    it('should handle object wrapper in response', async () => {
+      const mockResponse = {
+        ok: true,
+        json: async () => ({
+          choices: [{
+            message: {
+              content: '{"translations": ["Bonjour", "Monde"]}'
+            }
+          }]
+        })
+      };
+      mockFetch.mockResolvedValueOnce(mockResponse as any);
+
+      const translator = new OpenAITranslator('test-key');
+      const result = await translator.translate(['Hello', 'World'], 'fr');
+      
+      expect(result).toEqual(['Bonjour', 'Monde']);
+    });
+
+    it('should detect language', async () => {
+      const mockResponse = {
+        ok: true,
+        json: async () => ({
+          choices: [{
+            message: {
+              content: 'Spanish'
+            }
+          }]
+        })
+      };
+      mockFetch.mockResolvedValueOnce(mockResponse as any);
+
+      const translator = new OpenAITranslator('test-key');
+      const language = await translator.detectLanguage(['Hola', 'Mundo']);
+      
+      expect(language).toBe('Spanish');
+    });
+  });
+
   describe('TranslatorFactory', () => {
     beforeEach(() => {
       jest.clearAllMocks();
       delete process.env.GEMINI_API_KEY;
+      delete process.env.OPENAI_API_KEY;
     });
 
     it('should create Gemini translator when API key is available', async () => {
@@ -233,8 +319,21 @@ describe('Translators', () => {
         .rejects.toThrow('No translation provider available');
     });
 
+    it('should create OpenAI translator when explicitly requested', async () => {
+      process.env.OPENAI_API_KEY = 'test-key';
+      
+      const translator = await TranslatorFactory.create({ type: 'openai' });
+      expect(translator.name).toBe('OpenAI');
+    });
+
+    it('should throw error when OpenAI is requested but no API key', async () => {
+      await expect(TranslatorFactory.create({ type: 'openai' }))
+        .rejects.toThrow('OpenAI API key not found');
+    });
+
     it('should list available providers', async () => {
       process.env.GEMINI_API_KEY = 'test-key';
+      process.env.OPENAI_API_KEY = 'test-key';
       
       const mockResponse = {
         ok: true,
@@ -246,6 +345,7 @@ describe('Translators', () => {
       
       const providers = await TranslatorFactory.listAvailableProviders();
       expect(providers).toContain('gemini (API key found)');
+      expect(providers).toContain('openai (API key found)');
       expect(providers).toContain('ollama (local)');
     });
   });
