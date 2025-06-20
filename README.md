@@ -203,7 +203,7 @@ When enabled with the `--metadata` flag, translator-ai adds metadata to help tra
 ```json
 {
   "_translator_metadata": {
-    "tool": "translator-ai v1.0.9",
+    "tool": "translator-ai v1.0.10",
     "repository": "https://github.com/DatanoiseTV/translator-ai",
     "provider": "Google Gemini",
     "source_language": "English",

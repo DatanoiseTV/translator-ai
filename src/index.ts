@@ -441,7 +441,7 @@ async function processSingleFile(
   if (includeMetadata) {
     outputJson = {
       "_translator_metadata": {
-        "tool": "translator-ai v1.0.9",
+        "tool": "translator-ai v1.0.10",
         "repository": "https://github.com/DatanoiseTV/translator-ai",
         "provider": translator.name,
         "source_language": detectSource ? sourceLang : "English",
@@ -786,7 +786,7 @@ async function processMultipleFiles(
     if (includeMetadata) {
       outputJson = {
         "_translator_metadata": {
-          "tool": "translator-ai v1.0.9",
+          "tool": "translator-ai v1.0.10",
           "repository": "https://github.com/DatanoiseTV/translator-ai",
           "provider": translator.name,
           "source_language": detectSource ? sourceLang : "English",
@@ -846,7 +846,7 @@ async function main() {
   }
   
   program
-    .version('1.0.9')
+    .version('1.0.10')
     .description('Translate JSON i18n files efficiently with caching and deduplication.')
     .argument('<inputFiles...>', 'Path(s) to source JSON file(s) or glob patterns')
     .requiredOption('-l, --lang <langCodes>', 'Target language code(s), comma-separated for multiple')

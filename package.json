@@ -1,6 +1,6 @@
 {
   "name": "translator-ai",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Fast JSON i18n translator with AI support (Google Gemini & Ollama), incremental caching, multi-file deduplication, and MCP support",
   "main": "dist/index.js",
   "bin": {

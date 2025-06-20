@@ -41,7 +41,7 @@ describe('Metadata Feature', () => {
     // For unit test, we'll test the metadata structure
     const metadata = {
       "_translator_metadata": {
-        "tool": "translator-ai v1.0.9",
+        "tool": "translator-ai v1.0.10",
         "repository": "https://github.com/DatanoiseTV/translator-ai",
         "provider": "Test Provider",
         "source_language": "English",
@@ -83,7 +83,7 @@ describe('Metadata Feature', () => {
     
     const metadata = {
       "_translator_metadata": {
-        "tool": "translator-ai v1.0.9",
+        "tool": "translator-ai v1.0.10",
         "repository": "https://github.com/DatanoiseTV/translator-ai",
         "provider": "Google Gemini",
         "source_language": "English",
