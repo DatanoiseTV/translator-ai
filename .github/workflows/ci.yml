@@ -32,12 +32,23 @@ jobs:
     - name: Setup Ollama
       run: |
         curl -fsSL https://ollama.com/install.sh | sh
-        # Start Ollama service
+        # Start Ollama service in background
         ollama serve &
-        # Wait for Ollama to start
-        sleep 5
+        # Wait for Ollama to be ready
+        echo "Waiting for Ollama to start..."
+        for i in {1..30}; do
+          if curl -s http://localhost:11434/api/tags >/dev/null 2>&1; then
+            echo "Ollama is ready!"
+            break
+          fi
+          echo "Waiting for Ollama... ($i/30)"
+          sleep 1
+        done
         # Pull the model we use for testing
+        echo "Pulling deepseek-r1:latest model..."
         ollama pull deepseek-r1:latest
+        # Verify the model is available
+        ollama list
     
     - name: Run all tests
       run: npm test
