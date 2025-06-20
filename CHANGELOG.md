@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2025-01-20
+
+### Fixed
+- Ollama translation response parsing for DeepSeek-R1 model
+- Handle JSON responses with 'translations' property wrapper
+- Improved error handling for various LLM response formats
+
+### Added
+- `--verbose` flag for debugging Ollama API requests and responses
+- Detailed logging of Ollama request/response for troubleshooting
+
+### Improved
+- CI workflows with better Ollama service health checks
+- Unit test separation for faster CI feedback
+
 ## [1.0.5] - 2025-01-20
 
 ### Added
