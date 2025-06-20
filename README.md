@@ -62,7 +62,7 @@ Options:
   --no-cache                  Disable incremental translation cache
   --cache-file <path>         Custom cache file path
   -h, --help                  Display help
-  -V, --version              Display version
+  -V, --version               Display version
 ```
 
 ### Examples
