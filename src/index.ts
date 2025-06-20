@@ -8,7 +8,7 @@ import ora, { Ora } from 'ora';
 import dotenv from 'dotenv';
 import { performance } from 'perf_hooks';
 import { glob } from 'glob';
-import { hashString, getCacheDirectory, getDefaultCacheFilePath, flattenObjectWithPaths, unflattenObject, JsonObject, JsonValue, preserveFormats, restoreFormats, PreservedFormat, sortObjectKeys } from './helpers';
+import { hashString, getCacheDirectory, getDefaultCacheFilePath, flattenObjectWithPaths, unflattenObject, JsonObject, JsonValue, preserveFormats, restoreFormats, PreservedFormat, sortObjectKeys, compareKeys } from './helpers';
 import { TranslatorFactory, TranslatorType } from './translators/factory';
 import { TranslationProvider } from './translators/base';
 
@@ -242,7 +242,8 @@ async function processSingleFile(
   dryRun: boolean = false,
   preserveFormats: boolean = false,
   includeMetadata: boolean = false,
-  sortKeys: boolean = false
+  sortKeys: boolean = false,
+  checkKeys: boolean = false
 ): Promise<void> {
   const t = { start: performance.now(), last: performance.now() };
   const stats: PerformanceStats = {
@@ -423,13 +424,55 @@ async function processSingleFile(
   
   // 6. REBUILD FROM PATHS
   spinner.start('Rebuilding translated JSON structure from paths...');
-  const finalFlatMap = new Map<string, string>();
-  for (const [path, sourceString] of sourcePathMap.entries()) {
-    const h = hashString(sourceString);
-    const translatedString = translations.get(h) || sourceString; // Fallback to original if translation failed
-    finalFlatMap.set(path, translatedString);
+  
+  // Start with a deep copy of the original to preserve all keys
+  let translatedJson = JSON.parse(JSON.stringify(sourceJson)) as JsonObject;
+  
+  const PATH_SEPARATOR = '\x00';
+  const DOT_ESCAPE = '\x01';
+  
+  // Apply translations by updating the values in place
+  function applyTranslations(obj: any, path: string[] = []): void {
+    if (typeof obj === 'object' && obj !== null && !Array.isArray(obj)) {
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          applyTranslations(obj[key], [...path, key]);
+        }
+      }
+    } else if (Array.isArray(obj)) {
+      obj.forEach((item, index) => {
+        applyTranslations(item, [...path, `[${index}]`]);
+      });
+    } else if (typeof obj === 'string') {
+      // Build the flattened path
+      const flatPath = path.map(p => p.replace(/\./g, DOT_ESCAPE)).join(PATH_SEPARATOR);
+      if (sourcePathMap.has(flatPath)) {
+        const sourceString = sourcePathMap.get(flatPath)!;
+        const h = hashString(sourceString);
+        const translatedString = translations.get(h);
+        if (translatedString) {
+          // Update the value in the parent object
+          const parentPath = path.slice(0, -1);
+          const lastKey = path[path.length - 1];
+          let parent = translatedJson;
+          for (const p of parentPath) {
+            if (p.startsWith('[') && p.endsWith(']')) {
+              parent = parent[parseInt(p.slice(1, -1))];
+            } else {
+              parent = parent[p];
+            }
+          }
+          if (lastKey.startsWith('[') && lastKey.endsWith(']')) {
+            parent[parseInt(lastKey.slice(1, -1))] = translatedString;
+          } else {
+            parent[lastKey] = translatedString;
+          }
+        }
+      }
+    }
   }
-  let translatedJson = unflattenObject(finalFlatMap);
+  
+  applyTranslations(translatedJson);
   
   // Apply sorting if requested
   if (sortKeys) {
@@ -468,6 +511,30 @@ async function processSingleFile(
     spinner.succeed(`Successfully created translation file at ${finalOutput}`);
   }
 
+  // --- KEY CHECKING ---
+  if (checkKeys) {
+    const comparison = compareKeys(sourceJson, outputJson);
+    
+    if (!comparison.isValid) {
+      spinner.fail(`Key verification failed!`);
+      console.error(`\nMissing keys (${comparison.missingKeys.size}):`);
+      for (const key of comparison.missingKeys) {
+        console.error(`  - ${key}`);
+      }
+      
+      if (comparison.extraKeys.size > 0) {
+        console.error(`\nUnexpected extra keys (${comparison.extraKeys.size}):`);
+        for (const key of comparison.extraKeys) {
+          console.error(`  + ${key}`);
+        }
+      }
+      
+      process.exit(1);
+    } else {
+      spinner.succeed(`Key verification passed: all ${comparison.sourceKeys.size} keys are present in output.`);
+    }
+  }
+
   // --- STATS ---
   if (showStats && !stdout) {
     stats.totalTime = performance.now() - t.start;
@@ -489,7 +556,8 @@ async function processMultipleFiles(
   dryRun: boolean = false,
   preserveFormats: boolean = false,
   includeMetadata: boolean = false,
-  sortKeys: boolean = false
+  sortKeys: boolean = false,
+  checkKeys: boolean = false
 ): Promise<void> {
   const t = { start: performance.now(), last: performance.now() };
   const stats: MultiFileStats = {
@@ -766,15 +834,54 @@ async function processMultipleFiles(
   let filesWritten = 0;
 
   for (const [filePath, fileData] of fileDataMap) {
-    const translatedFlatMap = new Map<string, string>();
+    // Start with a deep copy of the original to preserve all keys
+    let translatedJson = JSON.parse(JSON.stringify(fileData.json)) as JsonObject;
     
-    for (const [path, sourceString] of fileData.paths) {
-      const hash = hashString(sourceString);
-      const translation = globalTranslations.get(hash) || sourceString;
-      translatedFlatMap.set(path, translation);
+    const PATH_SEPARATOR = '\x00';
+    const DOT_ESCAPE = '\x01';
+    
+    // Apply translations by updating the values in place
+    function applyTranslations(obj: any, path: string[] = []): void {
+      if (typeof obj === 'object' && obj !== null && !Array.isArray(obj)) {
+        for (const key in obj) {
+          if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            applyTranslations(obj[key], [...path, key]);
+          }
+        }
+      } else if (Array.isArray(obj)) {
+        obj.forEach((item, index) => {
+          applyTranslations(item, [...path, `[${index}]`]);
+        });
+      } else if (typeof obj === 'string') {
+        // Build the flattened path
+        const flatPath = path.map(p => p.replace(/\./g, DOT_ESCAPE)).join(PATH_SEPARATOR);
+        if (fileData.paths.has(flatPath)) {
+          const sourceString = fileData.paths.get(flatPath)!;
+          const hash = hashString(sourceString);
+          const translatedString = globalTranslations.get(hash);
+          if (translatedString) {
+            // Update the value in the parent object
+            const parentPath = path.slice(0, -1);
+            const lastKey = path[path.length - 1];
+            let parent = translatedJson;
+            for (const p of parentPath) {
+              if (p.startsWith('[') && p.endsWith(']')) {
+                parent = parent[parseInt(p.slice(1, -1))];
+              } else {
+                parent = parent[p];
+              }
+            }
+            if (lastKey.startsWith('[') && lastKey.endsWith(']')) {
+              parent[parseInt(lastKey.slice(1, -1))] = translatedString;
+            } else {
+              parent[lastKey] = translatedString;
+            }
+          }
+        }
+      }
     }
-
-    let translatedJson = unflattenObject(translatedFlatMap);
+    
+    applyTranslations(translatedJson);
     
     // Apply sorting if requested
     if (sortKeys) {
@@ -819,7 +926,48 @@ async function processMultipleFiles(
     spinner.succeed(`Created ${filesWritten} translated file(s).`);
   }
 
-  // 7. SHOW STATISTICS
+  // 7. KEY CHECKING
+  if (checkKeys && !stdout) {
+    spinner.start('Verifying keys...');
+    let allValid = true;
+    const failedFiles: string[] = [];
+    
+    for (const [filePath, fileData] of fileDataMap) {
+      const sourceJson = fileData.json;
+      
+      // Read the output file to check
+      const outputContent = await fs.readFile(fileData.outputPath, 'utf-8');
+      const outputJson = JSON.parse(outputContent);
+      
+      const comparison = compareKeys(sourceJson, outputJson);
+      
+      if (!comparison.isValid) {
+        allValid = false;
+        failedFiles.push(filePath);
+        
+        console.error(`\n${path.basename(filePath)}: Missing keys (${comparison.missingKeys.size}):`);
+        for (const key of comparison.missingKeys) {
+          console.error(`  - ${key}`);
+        }
+        
+        if (comparison.extraKeys.size > 0) {
+          console.error(`  Extra keys (${comparison.extraKeys.size}):`);
+          for (const key of comparison.extraKeys) {
+            console.error(`  + ${key}`);
+          }
+        }
+      }
+    }
+    
+    if (!allValid) {
+      spinner.fail(`Key verification failed for ${failedFiles.length} file(s)!`);
+      process.exit(1);
+    } else {
+      spinner.succeed(`Key verification passed: all files have correct keys.`);
+    }
+  }
+
+  // 8. SHOW STATISTICS
   if (showStats && !stdout) {
     stats.totalTime = performance.now() - t.start;
     printStats(stats, spinner, useCache);
@@ -865,13 +1013,14 @@ async function main() {
     .option('--preserve-formats', 'Preserve URLs, emails, numbers, dates, and other formats')
     .option('--metadata', 'Add translation metadata to output files (may break some i18n parsers)')
     .option('--sort-keys', 'Sort output JSON keys alphabetically')
+    .option('--check-keys', 'Verify all source keys exist in output (exit with error if keys are missing)')
     .parse(process.argv);
 
   const inputFiles = program.args;
   const { 
     lang, output, stdout, stats: showStats, cache, cacheFile,
     provider, ollamaUrl, ollamaModel, detectSource, dryRun, verbose, preserveFormats: shouldPreserveFormats,
-    metadata, sortKeys
+    metadata, sortKeys, checkKeys
   } = program.opts();
 
   if (!output && !stdout) {
@@ -920,9 +1069,9 @@ async function main() {
       }
       
       if (isSingleFile) {
-        await processSingleFile(inputFiles[0], targetLang, output, stdout, showStats, cache, cacheFile, translator, detectSource, dryRun, shouldPreserveFormats, metadata, sortKeys);
+        await processSingleFile(inputFiles[0], targetLang, output, stdout, showStats, cache, cacheFile, translator, detectSource, dryRun, shouldPreserveFormats, metadata, sortKeys, checkKeys);
       } else {
-        await processMultipleFiles(inputFiles, targetLang, output, stdout, showStats, cache, cacheFile, translator, detectSource, dryRun, shouldPreserveFormats, metadata, sortKeys);
+        await processMultipleFiles(inputFiles, targetLang, output, stdout, showStats, cache, cacheFile, translator, detectSource, dryRun, shouldPreserveFormats, metadata, sortKeys, checkKeys);
       }
     }
   } catch (error) {

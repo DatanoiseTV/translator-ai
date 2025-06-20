@@ -53,7 +53,7 @@ describe('Metadata Feature', () => {
     };
     
     // Verify metadata structure
-    expect(metadata._translator_metadata.tool).toBe("translator-ai v1.0.9");
+    expect(metadata._translator_metadata.tool).toBe("translator-ai v1.0.10");
     expect(metadata._translator_metadata.repository).toBe("https://github.com/DatanoiseTV/translator-ai");
     expect(metadata._translator_metadata.total_strings).toBe(2);
   });

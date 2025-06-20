@@ -102,6 +102,7 @@ Options:
   --preserve-formats          Preserve URLs, emails, numbers, dates, and other formats
   --metadata                  Add translation metadata to output files (may break some i18n parsers)
   --sort-keys                 Sort output JSON keys alphabetically
+  --check-keys                Verify all source keys exist in output (exit with error if keys are missing)
   -h, --help                  Display help
   -V, --version               Display version
 
@@ -191,9 +192,12 @@ translator-ai en.json -l fr -o fr.json --metadata
 # Sort keys alphabetically for consistent output
 translator-ai en.json -l fr -o fr.json --sort-keys
 
+# Verify all keys are present in the translation
+translator-ai en.json -l fr -o fr.json --check-keys
+
 # Combine features
 translator-ai src/**/*.json -l es,fr,de -o "{dir}/{name}.{lang}.json" \
-  --detect-source --preserve-formats --stats
+  --detect-source --preserve-formats --stats --check-keys
 ```
 
 ### Translation Metadata
@@ -231,6 +235,21 @@ This ensures consistent ordering across translations and makes diffs cleaner. Ke
 - Case-insensitively (a, B, c, not B, a, c)
 - Recursively through all nested objects
 - Arrays maintain their element order
+
+### Key Verification
+
+Use the `--check-keys` flag to ensure translation completeness:
+
+```bash
+translator-ai en.json -l es -o es.json --check-keys
+```
+
+This feature:
+- Verifies all source keys exist in the translated output
+- Reports any missing keys with their full paths
+- Exits with error code 1 if any keys are missing
+- Helps catch translation API failures or formatting issues
+- Ignores metadata keys when checking
 
 ### Supported Language Codes
 
