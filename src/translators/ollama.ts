@@ -12,7 +12,9 @@ export class OllamaTranslator extends BaseTranslator {
   private baseUrl: string;
   private model: string;
   private timeout: number;
-  private maxRetries: number = 3;
+  private maxRetries: number = 5;
+  private useJsonFormat: boolean = true;
+  private useSimplifiedPrompt: boolean = false;
   
   constructor(config: OllamaConfig = {}) {
     super();
@@ -23,6 +25,10 @@ export class OllamaTranslator extends BaseTranslator {
   
   async translate(strings: string[], targetLang: string, sourceLang: string = 'English'): Promise<string[]> {
     let lastError: Error | null = null;
+    
+    // Reset flags at the start
+    this.useJsonFormat = true;
+    this.useSimplifiedPrompt = false;
     
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
@@ -35,12 +41,24 @@ export class OllamaTranslator extends BaseTranslator {
         }
         
         if (attempt < this.maxRetries) {
-          // Wait before retrying (exponential backoff)
-          const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+          // Wait before retrying (exponential backoff with jitter)
+          const baseWaitTime = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+          const jitter = Math.random() * 500; // Add random jitter
+          const waitTime = baseWaitTime + jitter;
+          
           if (process.env.OLLAMA_VERBOSE === 'true' || process.argv.includes('--verbose')) {
-            console.error(`[Ollama] Waiting ${waitTime}ms before retry...`);
+            console.error(`[Ollama] Waiting ${Math.round(waitTime)}ms before retry...`);
           }
           await new Promise(resolve => setTimeout(resolve, waitTime));
+          
+          // On retries, try simpler prompt formats
+          if (attempt === 2) {
+            // Try without format: 'json' constraint
+            this.useJsonFormat = false;
+          } else if (attempt === 3) {
+            // Try with simplified prompt
+            this.useSimplifiedPrompt = true;
+          }
         }
       }
     }
@@ -101,21 +119,18 @@ export class OllamaTranslator extends BaseTranslator {
     }
     
     let prompt: string;
-    if (isDeepSeek) {
-      // DeepSeek format with explicit user/assistant markers
+    if (this.useSimplifiedPrompt) {
+      // Simplified prompt for retries
+      prompt = `Translate from ${sourceLang} to ${targetLang}:\n${JSON.stringify(strings)}\n\nReturn JSON array with translations.`;
+    } else if (isDeepSeek) {
+      // DeepSeek format with more flexible instructions
       prompt = `<｜User｜>Translate these ${strings.length} strings from ${sourceLang} to ${targetLang}.
 
-CRITICAL INSTRUCTIONS:
-1. Return ONLY a valid JSON array [] containing the translations
-2. The array MUST have exactly ${strings.length} strings
-3. Maintain the EXACT same order as the input
-4. Preserve ALL placeholders unchanged (like {{var}}, {0}, %s, etc.)
-5. Do NOT add any text before or after the JSON
-6. Do NOT wrap the array in an object
+Return a JSON response with the translations. You can return either:
+- A JSON array with ${strings.length} translated strings in order
+- A JSON object mapping each original string to its translation
 
-Example:
-Input: ["Hello", "Welcome {{name}}"]
-Output: ["Hola", "Bienvenido {{name}}"]
+Preserve ALL placeholders unchanged (like {{var}}, {0}, %s, etc.)
 
 Input to translate:
 ${JSON.stringify(strings, null, 2)}
@@ -141,7 +156,7 @@ Output:`;
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
     
     try {
-      const requestBody = {
+      const requestBody: any = {
         model: this.model,
         prompt: prompt,
         stream: false,
@@ -155,8 +170,12 @@ Output:`;
             "<｜Assistant｜>"
           ],
         },
-        format: 'json',
       };
+      
+      // Only add format: 'json' if the flag is true
+      if (this.useJsonFormat) {
+        requestBody.format = 'json';
+      }
       
       if (process.env.OLLAMA_VERBOSE === 'true' || process.argv.includes('--verbose')) {
         console.error(`[Ollama] Request body: ${JSON.stringify(requestBody, null, 2)}`);
@@ -229,8 +248,10 @@ Output:`;
           } else if (parsed.translations && Array.isArray(parsed.translations)) {
             return parsed.translations;
           } else if (typeof parsed === 'object' && !Array.isArray(parsed)) {
-            // Handle DeepSeek's object format where each key maps to an array
+            // Handle various object formats
             const keys = Object.keys(parsed);
+            
+            // Check if it's a direct mapping
             if (keys.length === strings.length) {
               // Check if each value is an array with one element
               const allArrays = keys.every(key => Array.isArray(parsed[key]) && parsed[key].length === 1);
@@ -243,6 +264,18 @@ Output:`;
               }
               // Or if it's a simple key-value mapping
               return strings.map(str => parsed[str] || str);
+            }
+            
+            // Check if it's numbered keys (0, 1, 2, etc.)
+            const hasNumberedKeys = keys.every(key => /^\d+$/.test(key));
+            if (hasNumberedKeys && keys.length === strings.length) {
+              return keys.sort((a, b) => parseInt(a) - parseInt(b)).map(key => parsed[key]);
+            }
+            
+            // Check if values are the translations (any object structure)
+            const values = Object.values(parsed);
+            if (values.length === strings.length && values.every(v => typeof v === 'string')) {
+              return values;
             }
           }
           throw new Error('Not a valid translation format');
@@ -282,6 +315,34 @@ Output:`;
             return parsed.translations;
           }
           throw new Error('Fixed JSON still not valid');
+        },
+        
+        // Strategy 5: Extract strings from any valid JSON structure
+        () => {
+          const parsed = JSON.parse(jsonString);
+          const extractedStrings: string[] = [];
+          
+          // Recursive function to extract strings
+          const extractStrings = (obj: any, depth: number = 0): void => {
+            if (depth > 5) return; // Prevent infinite recursion
+            
+            if (typeof obj === 'string') {
+              extractedStrings.push(obj);
+            } else if (Array.isArray(obj)) {
+              obj.forEach(item => extractStrings(item, depth + 1));
+            } else if (typeof obj === 'object' && obj !== null) {
+              Object.values(obj).forEach(value => extractStrings(value, depth + 1));
+            }
+          };
+          
+          extractStrings(parsed);
+          
+          // Only return if we got the expected number of strings
+          if (extractedStrings.length === strings.length) {
+            return extractedStrings;
+          }
+          
+          throw new Error(`Found ${extractedStrings.length} strings, expected ${strings.length}`);
         }
       ];
       
