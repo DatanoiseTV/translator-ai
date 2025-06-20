@@ -1,7 +1,7 @@
 {
   "name": "translator-ai",
-  "version": "1.0.10",
-  "description": "Fast JSON i18n translator with AI support (Google Gemini & Ollama), incremental caching, multi-file deduplication, and MCP support",
+  "version": "1.1.0",
+  "description": "Fast JSON i18n translator with AI support (Google Gemini, OpenAI & Ollama), incremental caching, multi-file deduplication, and MCP support",
   "main": "dist/index.js",
   "bin": {
     "translator-ai": "dist/index.js",
@@ -22,11 +22,14 @@
     "i18n",
     "translation",
     "gemini",
+    "openai",
     "json",
     "localization",
     "internationalization",
     "cli",
     "google-gemini",
+    "gpt-4",
+    "chatgpt",
     "mcp",
     "model-context-protocol",
     "claude-desktop"

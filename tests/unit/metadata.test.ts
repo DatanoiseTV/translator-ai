@@ -41,7 +41,7 @@ describe('Metadata Feature', () => {
     // For unit test, we'll test the metadata structure
     const metadata = {
       "_translator_metadata": {
-        "tool": "translator-ai v1.0.10",
+        "tool": "translator-ai v1.1.0",
         "repository": "https://github.com/DatanoiseTV/translator-ai",
         "provider": "Test Provider",
         "source_language": "English",
@@ -53,7 +53,7 @@ describe('Metadata Feature', () => {
     };
     
     // Verify metadata structure
-    expect(metadata._translator_metadata.tool).toBe("translator-ai v1.0.10");
+    expect(metadata._translator_metadata.tool).toBe("translator-ai v1.1.0");
     expect(metadata._translator_metadata.repository).toBe("https://github.com/DatanoiseTV/translator-ai");
     expect(metadata._translator_metadata.total_strings).toBe(2);
   });
@@ -83,7 +83,7 @@ describe('Metadata Feature', () => {
     
     const metadata = {
       "_translator_metadata": {
-        "tool": "translator-ai v1.0.10",
+        "tool": "translator-ai v1.1.0",
         "repository": "https://github.com/DatanoiseTV/translator-ai",
         "provider": "Google Gemini",
         "source_language": "English",
