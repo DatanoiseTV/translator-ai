@@ -16,6 +16,10 @@ Fast and efficient JSON i18n translator supporting multiple AI providers (Google
 - **Cross-Platform**: Works on Windows, macOS, and Linux with automatic cache directory detection
 - **Developer Friendly**: Built-in performance statistics and progress indicators
 - **Cost Effective**: Minimizes API usage through smart caching and deduplication
+- **Language Detection**: Automatically detect source language instead of assuming English
+- **Multiple Target Languages**: Translate to multiple languages in a single command
+- **Dry Run Mode**: Preview what would be translated without making API calls
+- **Format Preservation**: Maintains URLs, emails, dates, numbers, and template variables unchanged
 
 ## Installation
 
@@ -63,19 +67,19 @@ For completely local translation without API costs:
 
 ```bash
 # Translate a single file
-translator-gemini source.json -l es -o spanish.json
+translator-ai source.json -l es -o spanish.json
 
 # Translate multiple files with deduplication
-translator-gemini src/locales/en/*.json -l es -o "{dir}/{name}.{lang}.json"
+translator-ai src/locales/en/*.json -l es -o "{dir}/{name}.{lang}.json"
 
 # Use glob patterns
-translator-gemini "src/**/*.en.json" -l fr -o "{dir}/{name}.fr.json"
+translator-ai "src/**/*.en.json" -l fr -o "{dir}/{name}.fr.json"
 ```
 
 ### Command Line Options
 
 ```
-translator-gemini <inputFiles...> [options]
+translator-ai <inputFiles...> [options]
 
 Arguments:
   inputFiles                   Path(s) to source JSON file(s) or glob patterns
@@ -104,60 +108,79 @@ Output Pattern Variables (for multiple files):
 
 #### Translate a single file
 ```bash
-translator-gemini en.json -l es -o es.json
+translator-ai en.json -l es -o es.json
 ```
 
 #### Translate multiple files with pattern
 ```bash
 # All JSON files in a directory
-translator-gemini locales/en/*.json -l es -o "locales/es/{name}.json"
+translator-ai locales/en/*.json -l es -o "locales/es/{name}.json"
 
 # Recursive glob pattern
-translator-gemini "src/**/en.json" -l fr -o "{dir}/fr.json"
+translator-ai "src/**/en.json" -l fr -o "{dir}/fr.json"
 
 # Multiple specific files
-translator-gemini file1.json file2.json file3.json -l de -o "{name}.de.json"
+translator-ai file1.json file2.json file3.json -l de -o "{name}.de.json"
 ```
 
 #### Translate with deduplication savings
 ```bash
 # Shows statistics including how many API calls were saved
-translator-gemini src/i18n/*.json -l ja -o "{dir}/{name}.{lang}.json" --stats
+translator-ai src/i18n/*.json -l ja -o "{dir}/{name}.{lang}.json" --stats
 ```
 
 #### Output to stdout (useful for piping)
 ```bash
-translator-gemini en.json -l de --stdout > de.json
+translator-ai en.json -l de --stdout > de.json
 ```
 
 #### Parse output with jq
 ```bash
-translator-gemini en.json -l de --stdout | jq
+translator-ai en.json -l de --stdout | jq
 ```
 
 #### Disable caching for fresh translation
 ```bash
-translator-gemini en.json -l ja -o ja.json --no-cache
+translator-ai en.json -l ja -o ja.json --no-cache
 ```
 
 #### Use custom cache location
 ```bash
-translator-gemini en.json -l ko -o ko.json --cache-file /path/to/cache.json
+translator-ai en.json -l ko -o ko.json --cache-file /path/to/cache.json
 ```
 
 #### Use Ollama for local translation
 ```bash
 # Basic usage with Ollama
-translator-gemini en.json -l es -o es.json --provider ollama
+translator-ai en.json -l es -o es.json --provider ollama
 
 # Use a different Ollama model
-translator-gemini en.json -l fr -o fr.json --provider ollama --ollama-model llama2:latest
+translator-ai en.json -l fr -o fr.json --provider ollama --ollama-model llama2:latest
 
 # Connect to remote Ollama instance
-translator-gemini en.json -l de -o de.json --provider ollama --ollama-url http://192.168.1.100:11434
+translator-ai en.json -l de -o de.json --provider ollama --ollama-url http://192.168.1.100:11434
 
 # Check available providers
-translator-gemini --list-providers
+translator-ai --list-providers
+```
+
+#### Advanced Features
+```bash
+# Detect source language automatically
+translator-ai content.json -l es -o spanish.json --detect-source
+
+# Translate to multiple languages at once
+translator-ai en.json -l es,fr,de,ja -o translations/{lang}.json
+
+# Dry run - see what would be translated without making API calls
+translator-ai en.json -l es -o es.json --dry-run
+
+# Preserve formats (URLs, emails, dates, numbers, template variables)
+translator-ai app.json -l fr -o app-fr.json --preserve-formats
+
+# Combine features
+translator-ai src/**/*.json -l es,fr,de -o "{dir}/{name}.{lang}.json" \
+  --detect-source --preserve-formats --stats
 ```
 
 ### Supported Language Codes
@@ -177,7 +200,7 @@ It should support any standardized language codes.
 
 ### Multi-File Deduplication
 
-When translating multiple files, translator-gemini automatically:
+When translating multiple files, translator-ai automatically:
 - Identifies duplicate strings across files
 - Translates each unique string only once
 - Applies the same translation consistently across all files
@@ -238,7 +261,7 @@ This ensures that:
 
 ## Using with Model Context Protocol (MCP)
 
-translator-gemini can be used as an MCP server, allowing AI assistants like Claude Desktop to translate files directly.
+translator-ai can be used as an MCP server, allowing AI assistants like Claude Desktop to translate files directly.
 
 ### MCP Configuration
 
@@ -322,7 +345,7 @@ Translation complete! Processed 5 files with 23% deduplication savings.
 
 ### Working with YAML Files (Hugo, Jekyll, etc.)
 
-Since translator-gemini works with JSON files, you'll need to convert YAML to JSON and back. Here's a practical workflow:
+Since translator-ai works with JSON files, you'll need to convert YAML to JSON and back. Here's a practical workflow:
 
 #### Setup YAML conversion tools
 
@@ -353,7 +376,7 @@ translate_yaml() {
   npx js-yaml $input_file > temp_input.json
   
   # Translate JSON
-  translator-gemini temp_input.json -l $lang -o temp_output.json
+  translator-ai temp_input.json -l $lang -o temp_output.json
   
   # Convert back to YAML
   npx js-yaml temp_output.json > $output_file
@@ -392,7 +415,7 @@ def json_to_yaml(json_str):
     return yaml.dump(data, allow_unicode=True, default_flow_style=False)
 
 def translate_yaml_file(input_yaml, target_lang, output_yaml):
-    """Translate a YAML file using translator-gemini"""
+    """Translate a YAML file using translator-ai"""
     
     # Create temp JSON file
     temp_json_in = 'temp_in.json'
@@ -404,9 +427,9 @@ def translate_yaml_file(input_yaml, target_lang, output_yaml):
         with open(temp_json_in, 'w', encoding='utf-8') as f:
             f.write(json_content)
         
-        # Run translator-gemini
+        # Run translator-ai
         cmd = [
-            'translator-gemini',
+            'translator-ai',
             temp_json_in,
             '-l', target_lang,
             '-o', temp_json_out
@@ -468,8 +491,8 @@ function translateYamlFile(inputPath, targetLang, outputPath) {
   fs.writeFileSync(tempJsonIn, JSON.stringify(data, null, 2));
   
   try {
-    // Translate using translator-gemini
-    execSync(`translator-gemini ${tempJsonIn} -l ${targetLang} -o ${tempJsonOut}`);
+    // Translate using translator-ai
+    execSync(`translator-ai ${tempJsonIn} -l ${targetLang} -o ${tempJsonOut}`);
     
     // Read translated JSON
     const translatedData = JSON.parse(fs.readFileSync(tempJsonOut, 'utf8'));
@@ -540,7 +563,7 @@ find content -name "*.${SOURCE_LANG}.md" | while read -r file; do
     npx js-yaml temp_frontmatter.yaml > temp_frontmatter.json
     
     # Translate front matter
-    translator-gemini temp_frontmatter.json -l "$lang" -o "temp_translated.json"
+    translator-ai temp_frontmatter.json -l "$lang" -o "temp_translated.json"
     
     # Convert back to YAML
     echo "---" > "$output_file"
@@ -651,7 +674,7 @@ async function translateFile(sourceFile, targetFile, targetLang) {
   await fs.writeJson('temp_meta.json', translatable);
   
   // Translate
-  execSync(`translator-gemini temp_meta.json -l ${targetLang} -o temp_translated.json`);
+  execSync(`translator-ai temp_meta.json -l ${targetLang} -o temp_translated.json`);
   
   // Read translations
   const translated = await fs.readJson('temp_translated.json');
@@ -679,7 +702,7 @@ translateHugoContent().catch(console.error);
 
 1. **Install dependencies**:
 ```bash
-npm install -g translator-gemini js-yaml
+npm install -g translator-ai js-yaml
 ```
 
 2. **Create a Makefile** for easy translation:
@@ -696,7 +719,7 @@ translate: $(foreach lang,$(LANGUAGES),translate-$(lang))
 translate-%:
 	@echo "Translating to $*..."
 	@npx js-yaml $(SOURCE_YAML) > temp.json
-	@translator-gemini temp.json -l $* -o temp_$*.json
+	@translator-ai temp.json -l $* -o temp_$*.json
 	@npx js-yaml temp_$*.json > i18n/$*.yaml
 	@rm temp.json temp_$*.json
 	@echo "✓ Created i18n/$*.yaml"
@@ -710,7 +733,7 @@ translate-theme:
 translate-theme-%:
 	@echo "Translating theme to $*..."
 	@npx js-yaml $(THEME_DIR)/i18n/en.yaml > temp_theme.json
-	@translator-gemini temp_theme.json -l $* -o temp_theme_$*.json
+	@translator-ai temp_theme.json -l $* -o temp_theme_$*.json
 	@npx js-yaml temp_theme_$*.json > $(THEME_DIR)/i18n/$*.yaml
 	@rm temp_theme.json temp_theme_$*.json
 
@@ -790,7 +813,7 @@ class HugoTranslator {
         
         // Translate
         const translatedJson = `temp_i18n_${lang}_translated.json`;
-        execSync(`translator-gemini ${tempJson} -l ${lang} -o ${translatedJson}`);
+        execSync(`translator-ai ${tempJson} -l ${lang} -o ${translatedJson}`);
         
         // Convert back
         await this.convertFromJson(translatedJson, outputFile, ext);
@@ -867,7 +890,7 @@ class HugoTranslator {
     const translatedJson = `${tempJson}.translated`;
     
     await fs.writeJson(tempJson, translatable);
-    execSync(`translator-gemini ${tempJson} -l ${targetLang} -o ${translatedJson}`);
+    execSync(`translator-ai ${tempJson} -l ${targetLang} -o ${translatedJson}`);
     
     const translated = await fs.readJson(translatedJson);
     Object.assign(frontMatter, translated);
@@ -1010,7 +1033,7 @@ def translate_jekyll_post(post_path, target_lang, output_dir):
     
     # Translate
     subprocess.run([
-        'translator-gemini',
+        'translator-ai',
         'temp_meta.json',
         '-l', target_lang,
         '-o', f'temp_meta_{target_lang}.json'
@@ -1058,7 +1081,7 @@ for lang in ['es', 'fr', 'de']:
 
 ### Alternative: Direct YAML Support (Feature Request)
 
-If you frequently work with YAML files, consider creating a wrapper script that handles conversion automatically, or request YAML support as a feature for translator-gemini.
+If you frequently work with YAML files, consider creating a wrapper script that handles conversion automatically, or request YAML support as a feature for translator-ai.
 
 ## Development
 

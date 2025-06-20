@@ -21,12 +21,12 @@ export class OllamaTranslator extends BaseTranslator {
     this.timeout = config.timeout || 60000; // 60 seconds default
   }
   
-  async translate(strings: string[], targetLang: string): Promise<string[]> {
+  async translate(strings: string[], targetLang: string, sourceLang: string = 'English'): Promise<string[]> {
     let lastError: Error | null = null;
     
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        const result = await this.attemptTranslation(strings, targetLang);
+        const result = await this.attemptTranslation(strings, targetLang, sourceLang);
         return result;
       } catch (error: any) {
         lastError = error;
@@ -47,8 +47,49 @@ export class OllamaTranslator extends BaseTranslator {
     
     throw new Error(`Translation failed after ${this.maxRetries} attempts: ${lastError?.message || 'Unknown error'}`);
   }
+
+  async detectLanguage(strings: string[]): Promise<string> {
+    // Take a sample of strings for detection
+    const sampleSize = Math.min(5, strings.length);
+    const sample = strings.slice(0, sampleSize).join(' ');
+    
+    const prompt = `Detect the language of this text and respond with ONLY the language name in English (e.g., "English", "Spanish", "French", etc.): "${sample}"`;
+    
+    try {
+      const response = await fetch(`${this.baseUrl}/api/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: this.model,
+          prompt: prompt,
+          stream: false,
+          options: {
+            temperature: 0.1,
+          },
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Ollama API error: ${response.status}`);
+      }
+      
+      const data = await response.json() as any;
+      const detectedLang = data.response.trim();
+      
+      if (process.env.OLLAMA_VERBOSE === 'true' || process.argv.includes('--verbose')) {
+        console.error(`[Ollama] Detected language: ${detectedLang}`);
+      }
+      
+      return detectedLang;
+    } catch (error) {
+      console.warn('Language detection failed, assuming English:', error);
+      return 'English';
+    }
+  }
   
-  private async attemptTranslation(strings: string[], targetLang: string): Promise<string[]> {
+  private async attemptTranslation(strings: string[], targetLang: string, sourceLang: string = 'English'): Promise<string[]> {
     // For DeepSeek-R1, we need to format the prompt in their expected format
     const isDeepSeek = this.model.includes('deepseek');
     
@@ -62,7 +103,7 @@ export class OllamaTranslator extends BaseTranslator {
     let prompt: string;
     if (isDeepSeek) {
       // DeepSeek format with explicit user/assistant markers
-      prompt = `<｜User｜>Translate these ${strings.length} strings from English to ${targetLang}.
+      prompt = `<｜User｜>Translate these ${strings.length} strings from ${sourceLang} to ${targetLang}.
 
 CRITICAL INSTRUCTIONS:
 1. Return ONLY a valid JSON array [] containing the translations
@@ -81,7 +122,7 @@ ${JSON.stringify(strings, null, 2)}
 <｜Assistant｜>`;
     } else {
       // Generic format for other models
-      prompt = `Translate the following ${strings.length} strings from English to ${targetLang}.
+      prompt = `Translate the following ${strings.length} strings from ${sourceLang} to ${targetLang}.
 
 Rules:
 1. Return ONLY a valid JSON array with the translated strings

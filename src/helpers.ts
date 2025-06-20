@@ -95,3 +95,82 @@ export function unflattenObject(flatMap: Map<string, string>): JsonObject {
   
   return result;
 }
+
+// Format preservation helpers
+export interface PreservedFormat {
+  original: string;
+  processed: string;
+  preservedParts: Array<{
+    marker: string;
+    value: string;
+    start: number;
+    end: number;
+  }>;
+}
+
+export function preserveFormats(text: string): PreservedFormat {
+  const preservedParts: PreservedFormat['preservedParts'] = [];
+  let processed = text;
+  let markerIndex = 0;
+  
+  // Patterns to preserve (order matters - most specific first)
+  const patterns = [
+    // URLs (http/https)
+    { regex: /https?:\/\/[^\s<>"{}|\\^\[\]`]+/gi, type: 'url' },
+    // Email addresses
+    { regex: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi, type: 'email' },
+    // Template variables (various formats)
+    { regex: /\{\{[^}]+\}\}/g, type: 'template' }, // {{variable}}
+    { regex: /\{[0-9]+\}/g, type: 'placeholder' }, // {0}, {1}
+    { regex: /%[sdfbxo]/g, type: 'format' }, // %s, %d, etc.
+    { regex: /\$\{[^}]+\}/g, type: 'template' }, // ${variable}
+    { regex: /:[a-zA-Z_][a-zA-Z0-9_]*/g, type: 'named' }, // :param
+    // Numbers with units
+    { regex: /\b\d+(?:\.\d+)?(?:\s*(?:px|em|rem|%|pt|vh|vw|ms|s|kg|g|m|km|mi|GB|MB|KB))\b/gi, type: 'unit' },
+    // Currency
+    { regex: /[$€£¥₹]\s*\d+(?:,\d{3})*(?:\.\d{2})?/g, type: 'currency' },
+    { regex: /\d+(?:,\d{3})*(?:\.\d{2})?\s*[$€£¥₹]/g, type: 'currency' },
+    // ISO dates
+    { regex: /\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d{3})?(?:Z|[+-]\d{2}:\d{2})?)?/g, type: 'date' },
+    // Version numbers
+    { regex: /\bv?\d+\.\d+(?:\.\d+)*(?:-[a-zA-Z0-9.-]+)?/g, type: 'version' },
+    // Hex colors
+    { regex: /#[0-9a-fA-F]{3,8}\b/g, type: 'color' },
+    // File paths (basic)
+    { regex: /(?:\/[a-zA-Z0-9._-]+)+(?:\.[a-zA-Z0-9]+)?/g, type: 'path' },
+    // Windows paths
+    { regex: /[A-Z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]*/gi, type: 'path' },
+  ];
+  
+  // Extract and replace each pattern
+  for (const { regex, type } of patterns) {
+    processed = processed.replace(regex, (match, offset) => {
+      const marker = `__PRESERVE_${type.toUpperCase()}_${markerIndex}__`;
+      preservedParts.push({
+        marker,
+        value: match,
+        start: offset,
+        end: offset + match.length
+      });
+      markerIndex++;
+      return marker;
+    });
+  }
+  
+  return {
+    original: text,
+    processed,
+    preservedParts
+  };
+}
+
+export function restoreFormats(text: string, preservedFormat: PreservedFormat): string {
+  let restored = text;
+  
+  // Restore in reverse order to maintain correct positions
+  for (const part of preservedFormat.preservedParts) {
+    restored = restored.replace(part.marker, part.value);
+  }
+  
+  return restored;
+}

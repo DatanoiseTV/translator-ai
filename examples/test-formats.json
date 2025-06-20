@@ -1,0 +1,16 @@
+{
+  "welcome": "Welcome to our website at https://example.com",
+  "contact": "Email us at support@example.com or call +1-555-123-4567",
+  "pricing": "Our premium plan costs $99.99/month (or €89.99 in Europe)",
+  "version": "Current version: v2.4.3-beta.1",
+  "template": "Hello {{firstName}}, your order #{orderId} is ready",
+  "datetime": "Event scheduled for 2024-03-15T14:30:00Z",
+  "formats": "Use %s for strings and %d for numbers",
+  "path": "Config file located at /etc/app/config.json",
+  "windowsPath": "Install directory: C:\\Program Files\\MyApp",
+  "colors": "Primary color: #FF5733, Secondary: #3366CC",
+  "units": "Screen size: 1920px × 1080px, Load time: 250ms",
+  "placeholder": "Click {0} to continue or press {1} to cancel",
+  "namedParam": "User :userId has :points points",
+  "mixed": "Visit https://docs.example.com/v1.2.3 for help with {{feature}} (updated 2024-01-20)"
+}

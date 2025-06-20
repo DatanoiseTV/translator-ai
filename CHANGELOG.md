@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.9] - 2025-01-20
+
+### Added
+- **Language Detection**: Automatically detect source language with `--detect-source` flag
+  - Uses AI to identify the language of input strings
+  - No longer assumes English as the source language
+  
+- **Multiple Target Languages**: Translate to multiple languages in a single command
+  - Support for comma-separated language codes (e.g., `-l es,fr,de,ja`)
+  - Optimizes API usage by reusing source analysis
+  - Output patterns support `{lang}` variable for multi-language workflows
+  
+- **Dry Run Mode**: Preview translations without making API calls with `--dry-run`
+  - Shows detailed statistics about what would be translated
+  - Displays cache hit rates and estimated API calls
+  - Useful for cost estimation and debugging
+  
+- **Format Preservation**: Maintain special formats unchanged with `--preserve-formats`
+  - Preserves URLs, email addresses, and file paths
+  - Keeps template variables intact ({{var}}, {0}, %s, ${var}, :param)
+  - Maintains numbers with units, currency, dates, and version numbers
+  - Protects hex colors and other technical formats
+
+### Improved
+- README documentation with examples of new features
+- CLI help text with clearer descriptions
+
 ## [1.0.8] - 2025-01-20
 
 ### Changed

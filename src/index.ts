@@ -8,7 +8,7 @@ import ora, { Ora } from 'ora';
 import dotenv from 'dotenv';
 import { performance } from 'perf_hooks';
 import { glob } from 'glob';
-import { hashString, getCacheDirectory, getDefaultCacheFilePath, flattenObjectWithPaths, unflattenObject, JsonObject, JsonValue } from './helpers';
+import { hashString, getCacheDirectory, getDefaultCacheFilePath, flattenObjectWithPaths, unflattenObject, JsonObject, JsonValue, preserveFormats, restoreFormats, PreservedFormat } from './helpers';
 import { TranslatorFactory, TranslatorType } from './translators/factory';
 import { TranslationProvider } from './translators/base';
 
@@ -70,14 +70,33 @@ async function saveCache(cache: TranslationCache, cacheFilePath: string): Promis
   await fs.writeFile(cacheFilePath, JSON.stringify(cache, null, 2), 'utf-8');
 }
 
-async function translateBatch(strings: string[], targetLang: string, translator: TranslationProvider): Promise<Map<string, string>> {
+async function translateBatch(strings: string[], targetLang: string, translator: TranslationProvider, sourceLang: string = 'English', shouldPreserveFormats: boolean = false): Promise<Map<string, string>> {
   try {
-    const translations = await translator.translate(strings, targetLang);
+    let processedStrings = strings;
+    const formatMaps = new Map<string, PreservedFormat>();
+    
+    // If format preservation is enabled, process strings first
+    if (shouldPreserveFormats) {
+      processedStrings = strings.map(str => {
+        const preserved = preserveFormats(str);
+        formatMaps.set(str, preserved);
+        return preserved.processed;
+      });
+    }
+    
+    const translations = await translator.translate(processedStrings, targetLang, sourceLang);
     const translationMap = new Map<string, string>();
     
     strings.forEach((original, index) => {
       if (translations[index]) {
-        translationMap.set(original, translations[index]);
+        let translated = translations[index];
+        
+        // Restore preserved formats if enabled
+        if (shouldPreserveFormats && formatMaps.has(original)) {
+          translated = restoreFormats(translated, formatMaps.get(original)!);
+        }
+        
+        translationMap.set(original, translated);
       }
     });
     
@@ -218,7 +237,10 @@ async function processSingleFile(
   showStats: boolean,
   useCache: boolean,
   cacheFile: string,
-  translator: TranslationProvider
+  translator: TranslationProvider,
+  detectSource: boolean = false,
+  dryRun: boolean = false,
+  preserveFormats: boolean = false
 ): Promise<void> {
   const t = { start: performance.now(), last: performance.now() };
   const stats: PerformanceStats = {
@@ -244,6 +266,62 @@ async function processSingleFile(
   const sourcePathMap = flattenObjectWithPaths(sourceJson);
   const allSourceStrings = new Set(sourcePathMap.values());
   stats.stringCollectionTime = performance.now() - t.last; t.last = performance.now();
+  
+  // 1.5. DETECT SOURCE LANGUAGE IF REQUESTED
+  let sourceLang = 'English';
+  if (detectSource && translator.detectLanguage && allSourceStrings.size > 0) {
+    spinner.text = 'Detecting source language...';
+    const stringsArray = Array.from(allSourceStrings);
+    sourceLang = await translator.detectLanguage(stringsArray);
+    spinner.info(`Detected source language: ${sourceLang}`);
+  }
+  
+  // Handle dry-run mode
+  if (dryRun) {
+    spinner.info('--- DRY RUN MODE ---');
+    console.log(`\nSource file: ${inputFile}`);
+    console.log(`Total strings: ${allSourceStrings.size}`);
+    console.log(`Source language: ${sourceLang}`);
+    console.log(`Target language: ${lang}`);
+    console.log(`Format preservation: ${preserveFormats ? 'enabled' : 'disabled'}`);
+    
+    if (useCache) {
+      const resolvedCacheFile = path.isAbsolute(cacheFile) ? cacheFile : path.resolve(cacheFile);
+      const translationCache = await loadCache(resolvedCacheFile);
+      const langCache = translationCache[sourceFilePath]?.[lang] || {};
+      
+      let cacheHits = 0;
+      let newStrings = 0;
+      
+      allSourceStrings.forEach(str => {
+        const h = hashString(str);
+        if (langCache[h]) {
+          cacheHits++;
+        } else {
+          newStrings++;
+        }
+      });
+      
+      console.log(`\nCache statistics:`);
+      console.log(`  - Cache file: ${resolvedCacheFile}`);
+      console.log(`  - Cached translations: ${cacheHits}`);
+      console.log(`  - New strings to translate: ${newStrings}`);
+      
+      if (newStrings > 0) {
+        const numBatches = Math.ceil(newStrings / MAX_BATCH_SIZE);
+        console.log(`  - Estimated API calls: ${numBatches}`);
+      }
+    } else {
+      const numBatches = Math.ceil(allSourceStrings.size / MAX_BATCH_SIZE);
+      console.log(`\nCache disabled. All strings would be translated.`);
+      console.log(`Estimated API calls: ${numBatches}`);
+    }
+    
+    const finalOutput = output ? output.replace(/\{lang\}/g, lang) : 'stdout';
+    console.log(`\nOutput would be written to: ${finalOutput}`);
+    spinner.succeed('Dry run complete. No API calls were made.');
+    return;
+  }
   
   // 2. COMPARE WITH CACHE
   let translationCache: TranslationCache = {};
@@ -293,7 +371,7 @@ async function processSingleFile(
 
     const translationPromises = batches.map(async (batch, i) => {
       const batchStartTime = performance.now();
-      const result = await translateBatch(batch, lang, translator);
+      const result = await translateBatch(batch, lang, translator, sourceLang, preserveFormats);
       stats.batchTimes[i] = performance.now() - batchStartTime;
       spinner.info(`Batch ${i + 1}/${batches.length} (${batch.length} strings) completed in ${stats.batchTimes[i].toFixed(2)}ms.`);
       return result;
@@ -358,9 +436,10 @@ async function processSingleFile(
   if (stdout) {
     console.log(outputString);
   } else if (output) {
-    await fs.writeFile(output, outputString, 'utf-8');
+    const finalOutput = output.replace(/\{lang\}/g, lang);
+    await fs.writeFile(finalOutput, outputString, 'utf-8');
     stats.fileWriteTime = performance.now() - t.last;
-    spinner.succeed(`Successfully created translation file at ${output}`);
+    spinner.succeed(`Successfully created translation file at ${finalOutput}`);
   }
 
   // --- STATS ---
@@ -379,7 +458,10 @@ async function processMultipleFiles(
   showStats: boolean,
   useCache: boolean,
   cacheFile: string,
-  translator: TranslationProvider
+  translator: TranslationProvider,
+  detectSource: boolean = false,
+  dryRun: boolean = false,
+  preserveFormats: boolean = false
 ): Promise<void> {
   const t = { start: performance.now(), last: performance.now() };
   const stats: MultiFileStats = {
@@ -435,9 +517,9 @@ async function processMultipleFiles(
         const dir = path.dirname(filePath);
         const base = path.basename(filePath, '.json');
         outputPath = outputPattern
-          .replace(/{dir}/g, dir)
-          .replace(/{name}/g, base)
-          .replace(/{lang}/g, lang);
+          .replace(/\{dir\}/g, dir)
+          .replace(/\{name\}/g, base)
+          .replace(/\{lang\}/g, lang);
       } else {
         // Default: same directory with language suffix
         const dir = path.dirname(filePath);
@@ -466,6 +548,87 @@ async function processMultipleFiles(
   stats.deduplicationSavings = stats.totalStrings - stats.uniqueStrings;
 
   spinner.succeed(`Analyzed ${stats.totalFiles} files: ${stats.totalStrings} total strings, ${stats.uniqueStrings} unique.`);
+
+  // 2.5. DETECT SOURCE LANGUAGE IF REQUESTED
+  let sourceLang = 'English';
+  if (detectSource && translator.detectLanguage && stats.uniqueStrings > 0) {
+    spinner.text = 'Detecting source language...';
+    const sampleStrings = Array.from(globalStringMap.keys()).slice(0, 10);
+    sourceLang = await translator.detectLanguage(sampleStrings);
+    spinner.info(`Detected source language: ${sourceLang}`);
+  }
+  
+  // Handle dry-run mode for multiple files
+  if (dryRun) {
+    spinner.info('--- DRY RUN MODE ---');
+    console.log(`\nFiles to process: ${stats.totalFiles}`);
+    console.log(`Total strings: ${stats.totalStrings}`);
+    console.log(`Unique strings: ${stats.uniqueStrings}`);
+    console.log(`Deduplication savings: ${stats.deduplicationSavings} strings (${((stats.deduplicationSavings / stats.totalStrings) * 100).toFixed(1)}%)`);
+    console.log(`Source language: ${sourceLang}`);
+    console.log(`Target language: ${lang}`);
+    console.log(`Format preservation: ${preserveFormats ? 'enabled' : 'disabled'}`);
+    
+    if (useCache) {
+      const resolvedCacheFile = path.isAbsolute(cacheFile) ? cacheFile : path.resolve(cacheFile);
+      const translationCache = await loadCache(resolvedCacheFile);
+      
+      let totalCacheHits = 0;
+      let totalNewStrings = 0;
+      
+      for (const [str, files] of globalStringMap) {
+        const hash = hashString(str);
+        let foundInCache = false;
+        
+        for (const file of files) {
+          if (translationCache[file]?.[lang]?.[hash]) {
+            foundInCache = true;
+            break;
+          }
+        }
+        
+        if (foundInCache) {
+          totalCacheHits++;
+        } else {
+          totalNewStrings++;
+        }
+      }
+      
+      console.log(`\nCache statistics:`);
+      console.log(`  - Cache file: ${resolvedCacheFile}`);
+      console.log(`  - Cached translations: ${totalCacheHits}`);
+      console.log(`  - New strings to translate: ${totalNewStrings}`);
+      
+      if (totalNewStrings > 0) {
+        const numBatches = Math.ceil(totalNewStrings / MAX_BATCH_SIZE);
+        console.log(`  - Estimated API calls: ${numBatches}`);
+        
+        const callsWithoutDedup = Math.ceil(stats.totalStrings / MAX_BATCH_SIZE);
+        const savedCalls = Math.max(0, callsWithoutDedup - numBatches);
+        if (savedCalls > 0) {
+          console.log(`  - API calls saved by deduplication: ${savedCalls}`);
+        }
+      }
+    } else {
+      const numBatches = Math.ceil(stats.uniqueStrings / MAX_BATCH_SIZE);
+      console.log(`\nCache disabled. All unique strings would be translated.`);
+      console.log(`Estimated API calls: ${numBatches}`);
+      
+      const callsWithoutDedup = Math.ceil(stats.totalStrings / MAX_BATCH_SIZE);
+      const savedCalls = Math.max(0, callsWithoutDedup - numBatches);
+      if (savedCalls > 0) {
+        console.log(`API calls saved by deduplication: ${savedCalls}`);
+      }
+    }
+    
+    console.log(`\nOutput files:`);
+    for (const [filePath, fileData] of fileDataMap) {
+      console.log(`  - ${path.relative(process.cwd(), filePath)} → ${stdout ? 'stdout' : path.relative(process.cwd(), fileData.outputPath)}`);
+    }
+    
+    spinner.succeed('Dry run complete. No API calls were made.');
+    return;
+  }
 
   // 3. LOAD CACHE AND DETERMINE WHAT NEEDS TRANSLATION
   const resolvedCacheFile = path.isAbsolute(cacheFile) ? cacheFile : path.resolve(cacheFile);
@@ -525,7 +688,7 @@ async function processMultipleFiles(
       spinner.text = `Translating batch ${i + 1}/${numBatches} (${batchStrings.length} strings)...`;
       
       const batchStartTime = performance.now();
-      const batchTranslations = await translateBatch(batchStrings, lang, translator);
+      const batchTranslations = await translateBatch(batchStrings, lang, translator, sourceLang, preserveFormats);
       stats.batchTimes.push(performance.now() - batchStartTime);
       
       batchTranslations.forEach((translated, original) => {
@@ -631,10 +794,10 @@ async function main() {
   }
   
   program
-    .version('1.0.5')
+    .version('1.0.9')
     .description('Translate JSON i18n files efficiently with caching and deduplication.')
     .argument('<inputFiles...>', 'Path(s) to source JSON file(s) or glob patterns')
-    .requiredOption('-l, --lang <langCode>', 'Target language code')
+    .requiredOption('-l, --lang <langCodes>', 'Target language code(s), comma-separated for multiple')
     .option('-o, --output <pattern>', 'Output file path or pattern. Use {dir}, {name}, {lang} for multiple files')
     .option('--stdout', 'Output to stdout instead of files')
     .option('--stats', 'Show detailed statistics')
@@ -645,12 +808,15 @@ async function main() {
     .option('--ollama-model <model>', 'Ollama model name', 'deepseek-r1:latest')
     .option('--list-providers', 'List available translation providers')
     .option('--verbose', 'Enable verbose output for debugging')
+    .option('--detect-source', 'Auto-detect source language instead of assuming English')
+    .option('--dry-run', 'Preview what would be translated without making API calls')
+    .option('--preserve-formats', 'Preserve URLs, emails, numbers, dates, and other formats')
     .parse(process.argv);
 
   const inputFiles = program.args;
   const { 
     lang, output, stdout, stats: showStats, cache, cacheFile,
-    provider, ollamaUrl, ollamaModel
+    provider, ollamaUrl, ollamaModel, detectSource, dryRun, verbose, preserveFormats: shouldPreserveFormats
   } = program.opts();
 
   if (!output && !stdout) {
@@ -658,6 +824,17 @@ async function main() {
   }
   if (output && stdout) {
     program.error('Error: Cannot use both -o and --stdout');
+  }
+  
+  // Enable verbose mode if requested
+  if (verbose) {
+    process.env.OLLAMA_VERBOSE = 'true';
+  }
+
+  // Parse target languages
+  const targetLanguages = lang.split(',').map((l: string) => l.trim()).filter((l: string) => l);
+  if (targetLanguages.length === 0) {
+    program.error('Error: No valid target languages specified');
   }
 
   // Create translator
@@ -681,10 +858,17 @@ async function main() {
                       !inputFiles[0].includes('[');
 
   try {
-    if (isSingleFile) {
-      await processSingleFile(inputFiles[0], lang, output, stdout, showStats, cache, cacheFile, translator);
-    } else {
-      await processMultipleFiles(inputFiles, lang, output, stdout, showStats, cache, cacheFile, translator);
+    // Process each target language
+    for (const targetLang of targetLanguages) {
+      if (targetLanguages.length > 1) {
+        console.log(`\n=== Processing language: ${targetLang} ===\n`);
+      }
+      
+      if (isSingleFile) {
+        await processSingleFile(inputFiles[0], targetLang, output, stdout, showStats, cache, cacheFile, translator, detectSource, dryRun, shouldPreserveFormats);
+      } else {
+        await processMultipleFiles(inputFiles, targetLang, output, stdout, showStats, cache, cacheFile, translator, detectSource, dryRun, shouldPreserveFormats);
+      }
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

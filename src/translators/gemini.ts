@@ -12,7 +12,7 @@ export class GeminiTranslator extends BaseTranslator {
     this.modelName = modelName;
   }
   
-  async translate(strings: string[], targetLang: string): Promise<string[]> {
+  async translate(strings: string[], targetLang: string, sourceLang: string = 'English'): Promise<string[]> {
     const model = this.genAI.getGenerativeModel({ 
       model: this.modelName,
       generationConfig: {
@@ -43,7 +43,7 @@ export class GeminiTranslator extends BaseTranslator {
       ],
     });
     
-    const prompt = `Translate the following ${strings.length} strings from English to ${targetLang} language.
+    const prompt = `Translate the following ${strings.length} strings from ${sourceLang} to ${targetLang} language.
 Return ONLY a JSON array with the translated strings in the exact same order.
 Maintain any placeholder patterns like {{variable}} or {0} unchanged.
 Do not add any explanation or additional text.
@@ -60,6 +60,34 @@ ${JSON.stringify(strings, null, 2)}`;
     
     this.validateResponse(strings, translations);
     return translations;
+  }
+  
+  async detectLanguage(strings: string[]): Promise<string> {
+    const model = this.genAI.getGenerativeModel({ 
+      model: this.modelName,
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 50,
+      },
+    });
+    
+    // Take a sample of strings for detection
+    const sampleSize = Math.min(5, strings.length);
+    const sample = strings.slice(0, sampleSize).join(' ');
+    
+    const prompt = `Detect the language of this text and respond with ONLY the language name in English (e.g., "English", "Spanish", "French", etc.): "${sample}"`;
+    
+    try {
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+      });
+      
+      const detectedLang = result.response.text().trim();
+      return detectedLang;
+    } catch (error) {
+      console.warn('Language detection failed, assuming English:', error);
+      return 'English';
+    }
   }
   
   async isAvailable(): Promise<boolean> {

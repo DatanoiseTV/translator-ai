@@ -1,6 +1,7 @@
 export interface TranslationProvider {
   name: string;
-  translate(strings: string[], targetLang: string): Promise<string[]>;
+  translate(strings: string[], targetLang: string, sourceLang?: string): Promise<string[]>;
+  detectLanguage?(strings: string[]): Promise<string>;
   isAvailable(): Promise<boolean>;
 }
 
@@ -13,9 +14,11 @@ export interface TranslationOptions {
 export abstract class BaseTranslator implements TranslationProvider {
   abstract name: string;
   
-  abstract translate(strings: string[], targetLang: string): Promise<string[]>;
+  abstract translate(strings: string[], targetLang: string, sourceLang?: string): Promise<string[]>;
   
   abstract isAvailable(): Promise<boolean>;
+  
+  async detectLanguage?(strings: string[]): Promise<string>;
   
   protected validateResponse(strings: string[], translations: string[]): void {
     if (translations.length !== strings.length) {
