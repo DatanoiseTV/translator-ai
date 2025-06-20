@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] - 2025-01-20
+
+### Fixed
+- Ollama no longer falls back to source language when translation fails
+- Empty or missing translations now properly throw errors
+- Better handling of malformed JSON responses from LLMs
+
+### Added
+- Retry logic with exponential backoff (3 attempts) for Ollama translations
+- Enhanced JSON extraction supporting multiple response formats
+- Validation to ensure all fields are properly translated
+
+### Improved
+- More descriptive error messages for debugging
+- Robust parsing for responses with extra text before/after JSON
+- Test suite updated to handle retry behavior
+
 ## [1.0.6] - 2025-01-20
 
 ### Fixed
