@@ -1,0 +1,184 @@
+import { BaseTranslator } from './base';
+import fetch from 'node-fetch';
+
+export interface OllamaConfig {
+  baseUrl?: string;
+  model?: string;
+  timeout?: number;
+}
+
+export class OllamaTranslator extends BaseTranslator {
+  name = 'Ollama (Local)';
+  private baseUrl: string;
+  private model: string;
+  private timeout: number;
+  
+  constructor(config: OllamaConfig = {}) {
+    super();
+    this.baseUrl = config.baseUrl || 'http://localhost:11434';
+    this.model = config.model || 'deepseek-r1:latest';
+    this.timeout = config.timeout || 60000; // 60 seconds default
+  }
+  
+  async translate(strings: string[], targetLang: string): Promise<string[]> {
+    // For DeepSeek-R1, we need to format the prompt in their expected format
+    const isDeepSeek = this.model.includes('deepseek');
+    
+    let prompt: string;
+    if (isDeepSeek) {
+      // DeepSeek format with explicit user/assistant markers
+      prompt = `<｜User｜>Translate these ${strings.length} strings from English to ${targetLang}. Return ONLY a JSON array [] with the translations in the exact same order as the input. Keep placeholders like {{var}} or {0} unchanged.
+
+Example: If input is ["Hello", "World"], output should be ["Hola", "Mundo"]
+
+Input: ${JSON.stringify(strings, null, 2)}
+<｜Assistant｜>`;
+    } else {
+      // Generic format for other models
+      prompt = `Translate the following ${strings.length} strings from English to ${targetLang}.
+
+Rules:
+1. Return ONLY a valid JSON array with the translated strings
+2. Keep the exact same order as the input
+3. Preserve any placeholder patterns like {{variable}}, {0}, %s, etc.
+4. Do not include any explanations, markdown formatting, or additional text
+5. The output must be valid JSON that can be parsed
+
+Input strings:
+${JSON.stringify(strings, null, 2)}
+
+Output:`;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    
+    try {
+      const response = await fetch(`${this.baseUrl}/api/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: this.model,
+          prompt: prompt,
+          stream: false,
+          options: {
+            temperature: 0.1, // Lower for more consistent translations
+            top_p: 0.95, // DeepSeek R1 default
+            stop: [
+              "<｜begin▁of▁sentence｜>",
+              "<｜end▁of▁sentence｜>",
+              "<｜User｜>",
+              "<｜Assistant｜>"
+            ],
+          },
+          format: 'json',
+        }),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json() as any;
+      let responseText = data.response;
+      
+      // Remove DeepSeek thinking tags if present
+      if (this.model.includes('deepseek')) {
+        responseText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+        // Also remove any trailing end markers
+        responseText = responseText.replace(/<｜end▁of▁sentence｜>/g, '').trim();
+      }
+      
+      // Extract JSON from the response
+      let translations: string[];
+      try {
+        // Try to parse the entire response as JSON
+        const parsed = JSON.parse(responseText);
+        
+        // Check if it's an array or object
+        if (Array.isArray(parsed)) {
+          translations = parsed;
+        } else if (typeof parsed === 'object' && parsed !== null) {
+          // If it's an object, extract values in order of input strings
+          translations = strings.map(str => parsed[str] || str);
+        } else {
+          throw new Error('Invalid JSON response format');
+        }
+      } catch (e) {
+        // If that fails, try to extract JSON array from the response
+        const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          translations = JSON.parse(jsonMatch[0]);
+        } else {
+          // Try to extract JSON object
+          const objectMatch = responseText.match(/\{[\s\S]*\}/);
+          if (objectMatch) {
+            const parsed = JSON.parse(objectMatch[0]);
+            translations = strings.map(str => parsed[str] || str);
+          } else {
+            throw new Error('Could not extract valid JSON from Ollama response');
+          }
+        }
+      }
+      
+      this.validateResponse(strings, translations);
+      return translations;
+      
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      
+      if (error.name === 'AbortError') {
+        throw new Error(`Ollama request timed out after ${this.timeout}ms`);
+      }
+      
+      throw error;
+    }
+  }
+  
+  async isAvailable(): Promise<boolean> {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      const response = await fetch(`${this.baseUrl}/api/tags`, {
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        return false;
+      }
+      
+      const data = await response.json() as any;
+      const models = data.models || [];
+      
+      // Check if the specified model is available
+      return models.some((m: any) => m.name === this.model);
+      
+    } catch (error) {
+      return false;
+    }
+  }
+  
+  async listModels(): Promise<string[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/tags`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to list Ollama models');
+      }
+      
+      const data = await response.json() as any;
+      return (data.models || []).map((m: any) => m.name);
+      
+    } catch (error) {
+      throw new Error(`Failed to connect to Ollama: ${error}`);
+    }
+  }
+}

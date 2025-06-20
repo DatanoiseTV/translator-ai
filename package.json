@@ -1,15 +1,16 @@
 {
   "name": "translator-gemini",
-  "version": "1.0.3",
-  "description": "Fast and efficient JSON i18n translator powered by Google Gemini API with incremental caching support",
+  "version": "1.0.5",
+  "description": "Fast JSON i18n translator with Google Gemini API, incremental caching, multi-file deduplication, and MCP support for Claude Desktop",
   "main": "dist/index.js",
   "bin": {
-    "translator-gemini": "dist/index.js"
+    "translator-gemini": "dist/index.js",
+    "translator-gemini-mcp": "dist/mcp-server.js"
   },
   "scripts": {
     "start": "ts-node src/index.ts",
     "build": "tsc",
-    "postbuild": "test -f dist/index.js && chmod +x dist/index.js || echo 'Build output not found'",
+    "postbuild": "test -f dist/index.js && chmod +x dist/index.js || echo 'Build output not found' && test -f dist/mcp-server.js && chmod +x dist/mcp-server.js || echo 'MCP server not found'",
     "prepublishOnly": "npm run build",
     "test": "jest",
     "test:coverage": "jest --coverage",
@@ -23,7 +24,10 @@
     "localization",
     "internationalization",
     "cli",
-    "google-gemini"
+    "google-gemini",
+    "mcp",
+    "model-context-protocol",
+    "claude-desktop"
   ],
   "author": "DatanoiseTV",
   "license": "SEE LICENSE IN LICENSE",
@@ -46,13 +50,18 @@
   ],
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@modelcontextprotocol/sdk": "^1.13.0",
+    "@types/glob": "^8.1.0",
     "commander": "^11.1.0",
     "dotenv": "^16.3.1",
+    "glob": "^11.0.3",
+    "node-fetch": "^2.7.0",
     "ora": "^5.4.1"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/node": "^20.10.6",
+    "@types/node-fetch": "^2.6.11",
     "jest": "^30.0.2",
     "ts-jest": "^29.4.0",
     "ts-node": "^10.9.2",

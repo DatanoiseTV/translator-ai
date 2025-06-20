@@ -7,11 +7,11 @@ describe('CLI Argument Parsing', () => {
   beforeEach(() => {
     program = new Command();
     program
-      .version('1.0.3')
+      .version('1.0.4')
       .description('A CLI tool to translate and synchronize JSON i18n files.')
-      .argument('<inputFile>', 'Path to the source English JSON file.')
+      .argument('<inputFiles...>', 'Path(s) to source JSON file(s) or glob patterns.')
       .requiredOption('-l, --lang <langCode>', 'The target language code.')
-      .option('-o, --output <outputFile>', 'The path for the output file.')
+      .option('-o, --output <pattern>', 'Output file path or pattern.')
       .option('--stdout', 'Output to stdout instead of a file.')
       .option('--stats', 'Show detailed performance statistics.')
       .option('--no-cache', 'Disable the incremental translation cache.')
@@ -27,6 +27,25 @@ describe('CLI Argument Parsing', () => {
     expect(program.args[0]).toBe('input.json');
     expect(opts.lang).toBe('es');
     expect(opts.output).toBe('output.json');
+  });
+
+  it('should parse multiple input files', () => {
+    const args = ['node', 'translator-gemini', 'file1.json', 'file2.json', 'file3.json', '-l', 'es', '-o', '{name}.{lang}.json'];
+    program.parse(args);
+    
+    const opts = program.opts();
+    expect(program.args).toEqual(['file1.json', 'file2.json', 'file3.json']);
+    expect(opts.lang).toBe('es');
+    expect(opts.output).toBe('{name}.{lang}.json');
+  });
+
+  it('should handle glob patterns', () => {
+    const args = ['node', 'translator-gemini', 'src/**/*.json', '-l', 'fr', '-o', '{dir}/{name}.{lang}.json'];
+    program.parse(args);
+    
+    const opts = program.opts();
+    expect(program.args[0]).toBe('src/**/*.json');
+    expect(opts.output).toBe('{dir}/{name}.{lang}.json');
   });
 
   it('should handle stdout option', () => {
@@ -93,7 +112,7 @@ describe('CLI Argument Parsing', () => {
     const args = ['node', 'translator-gemini', '--version'];
     
     // exitOverride causes it to throw with the version string
-    expect(() => program.parse(args)).toThrow('1.0.3');
+    expect(() => program.parse(args)).toThrow('1.0.4');
     
     mockLog.mockRestore();
   });

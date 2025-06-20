@@ -1,0 +1,247 @@
+import { GeminiTranslator } from '../../src/translators/gemini';
+import { OllamaTranslator } from '../../src/translators/ollama';
+import { TranslatorFactory } from '../../src/translators/factory';
+import fetch from 'node-fetch';
+
+jest.mock('node-fetch');
+const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
+
+describe('Translators', () => {
+  describe('GeminiTranslator', () => {
+    it('should create instance with API key', () => {
+      const translator = new GeminiTranslator('test-api-key');
+      expect(translator.name).toBe('Google Gemini');
+    });
+
+    it('should check availability based on API key', async () => {
+      process.env.GEMINI_API_KEY = 'test-key';
+      const translator = new GeminiTranslator('test-key');
+      expect(await translator.isAvailable()).toBe(true);
+      delete process.env.GEMINI_API_KEY;
+    });
+  });
+
+  describe('OllamaTranslator', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should create instance with default config', () => {
+      const translator = new OllamaTranslator();
+      expect(translator.name).toBe('Ollama (Local)');
+    });
+
+    it('should create instance with custom config', () => {
+      const translator = new OllamaTranslator({
+        baseUrl: 'http://localhost:9999',
+        model: 'custom-model',
+        timeout: 30000
+      });
+      expect(translator.name).toBe('Ollama (Local)');
+    });
+
+    it('should check availability by calling Ollama API', async () => {
+      const mockResponse = {
+        ok: true,
+        json: async () => ({
+          models: [
+            { name: 'deepseek-r1:latest' },
+            { name: 'llama2:latest' }
+          ]
+        })
+      };
+      mockFetch.mockResolvedValueOnce(mockResponse as any);
+
+      const translator = new OllamaTranslator();
+      const isAvailable = await translator.isAvailable();
+      
+      expect(isAvailable).toBe(true);
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:11434/api/tags', expect.any(Object));
+    });
+
+    it('should return false when Ollama is not available', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('Connection refused'));
+
+      const translator = new OllamaTranslator();
+      const isAvailable = await translator.isAvailable();
+      
+      expect(isAvailable).toBe(false);
+    });
+
+    it('should return false when model is not installed', async () => {
+      const mockResponse = {
+        ok: true,
+        json: async () => ({
+          models: [
+            { name: 'llama2:latest' }
+          ]
+        })
+      };
+      mockFetch.mockResolvedValueOnce(mockResponse as any);
+
+      const translator = new OllamaTranslator({ model: 'deepseek-r1:latest' });
+      const isAvailable = await translator.isAvailable();
+      
+      expect(isAvailable).toBe(false);
+    });
+
+    it('should format prompt correctly for DeepSeek models', async () => {
+      const mockResponse = {
+        ok: true,
+        json: async () => ({
+          response: '["Hola", "Mundo"]'
+        })
+      };
+      mockFetch.mockResolvedValueOnce(mockResponse as any);
+
+      const translator = new OllamaTranslator({ model: 'deepseek-r1:latest' });
+      const result = await translator.translate(['Hello', 'World'], 'es');
+      
+      expect(result).toEqual(['Hola', 'Mundo']);
+      
+      const fetchCall = mockFetch.mock.calls[0];
+      const body = JSON.parse(fetchCall[1]?.body as string);
+      expect(body.prompt).toContain('<｜User｜>');
+      expect(body.prompt).toContain('<｜Assistant｜>');
+    });
+
+    it('should handle thinking tags in DeepSeek response', async () => {
+      const mockResponse = {
+        ok: true,
+        json: async () => ({
+          response: '<think>\nLet me translate these words\n</think>\n["Hola", "Mundo"]<｜end▁of▁sentence｜>'
+        })
+      };
+      mockFetch.mockResolvedValueOnce(mockResponse as any);
+
+      const translator = new OllamaTranslator({ model: 'deepseek-r1:latest' });
+      const result = await translator.translate(['Hello', 'World'], 'es');
+      
+      expect(result).toEqual(['Hola', 'Mundo']);
+    });
+
+    it('should extract JSON from mixed response', async () => {
+      const mockResponse = {
+        ok: true,
+        json: async () => ({
+          response: 'Here are the translations: ["Bonjour", "Monde"]'
+        })
+      };
+      mockFetch.mockResolvedValueOnce(mockResponse as any);
+
+      const translator = new OllamaTranslator();
+      const result = await translator.translate(['Hello', 'World'], 'fr');
+      
+      expect(result).toEqual(['Bonjour', 'Monde']);
+    });
+
+    it('should handle timeout', async () => {
+      // Mock a delayed response that will timeout
+      mockFetch.mockImplementationOnce(() => 
+        new Promise((_, reject) => {
+          const timeout = setTimeout(() => {
+            const error = new Error('Request aborted');
+            (error as any).name = 'AbortError';
+            reject(error);
+          }, 150);
+          // Clear timeout to avoid Jest warnings
+          setTimeout(() => clearTimeout(timeout), 200);
+        })
+      );
+
+      const translator = new OllamaTranslator({ timeout: 100 });
+      
+      await expect(translator.translate(['Hello'], 'es'))
+        .rejects.toThrow('Ollama request timed out after 100ms');
+    });
+
+    it('should validate response length', async () => {
+      const mockResponse = {
+        ok: true,
+        json: async () => ({
+          response: '["Hola"]' // Only one translation for two inputs
+        })
+      };
+      mockFetch.mockResolvedValueOnce(mockResponse as any);
+
+      const translator = new OllamaTranslator();
+      
+      await expect(translator.translate(['Hello', 'World'], 'es'))
+        .rejects.toThrow('Translation count mismatch: expected 2, got 1');
+    });
+
+    it('should list available models', async () => {
+      const mockResponse = {
+        ok: true,
+        json: async () => ({
+          models: [
+            { name: 'deepseek-r1:latest' },
+            { name: 'llama2:latest' },
+            { name: 'mistral:latest' }
+          ]
+        })
+      };
+      mockFetch.mockResolvedValueOnce(mockResponse as any);
+
+      const translator = new OllamaTranslator();
+      const models = await translator.listModels();
+      
+      expect(models).toEqual(['deepseek-r1:latest', 'llama2:latest', 'mistral:latest']);
+    });
+  });
+
+  describe('TranslatorFactory', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      delete process.env.GEMINI_API_KEY;
+    });
+
+    it('should create Gemini translator when API key is available', async () => {
+      process.env.GEMINI_API_KEY = 'test-key';
+      
+      const translator = await TranslatorFactory.create();
+      expect(translator.name).toBe('Google Gemini');
+    });
+
+    it('should create Ollama translator when explicitly requested', async () => {
+      const mockResponse = {
+        ok: true,
+        json: async () => ({
+          models: [{ name: 'deepseek-r1:latest' }]
+        })
+      };
+      mockFetch.mockResolvedValueOnce(mockResponse as any);
+      
+      const translator = await TranslatorFactory.create({ type: 'ollama' });
+      expect(translator.name).toBe('Ollama (Local)');
+    });
+
+    it('should throw error when Ollama is not available', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('Connection refused'));
+      
+      await expect(TranslatorFactory.create({ type: 'ollama' }))
+        .rejects.toThrow('Ollama is not available');
+    });
+
+    it('should throw error when no provider is available', async () => {
+      await expect(TranslatorFactory.create({ type: 'gemini' }))
+        .rejects.toThrow('No translation provider available');
+    });
+
+    it('should list available providers', async () => {
+      process.env.GEMINI_API_KEY = 'test-key';
+      
+      const mockResponse = {
+        ok: true,
+        json: async () => ({
+          models: [{ name: 'deepseek-r1:latest' }]
+        })
+      };
+      mockFetch.mockResolvedValueOnce(mockResponse as any);
+      
+      const providers = await TranslatorFactory.listAvailableProviders();
+      expect(providers).toContain('gemini (API key found)');
+      expect(providers).toContain('ollama (local)');
+    });
+  });
+});

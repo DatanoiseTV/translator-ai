@@ -1,0 +1,5 @@
+{
+  "greeting": "Hello",
+  "shared": "This text appears in multiple files",
+  "unique1": "This is unique to file 1"
+}
