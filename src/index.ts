@@ -457,9 +457,9 @@ async function processSingleFile(
           let parent = translatedJson;
           for (const p of parentPath) {
             if (p.startsWith('[') && p.endsWith(']')) {
-              parent = parent[parseInt(p.slice(1, -1))];
+              parent = parent[parseInt(p.slice(1, -1))] as any;
             } else {
-              parent = parent[p];
+              parent = parent[p] as any;
             }
           }
           if (lastKey.startsWith('[') && lastKey.endsWith(']')) {
@@ -863,7 +863,7 @@ async function processMultipleFiles(
             // Update the value in the parent object
             const parentPath = path.slice(0, -1);
             const lastKey = path[path.length - 1];
-            let parent = translatedJson;
+            let parent: any = translatedJson;
             for (const p of parentPath) {
               if (p.startsWith('[') && p.endsWith(']')) {
                 parent = parent[parseInt(p.slice(1, -1))];

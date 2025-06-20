@@ -195,3 +195,79 @@ export function sortObjectKeys(obj: JsonValue): JsonValue {
   // For primitive values, return as-is
   return obj;
 }
+
+// Compare keys between source and output JSON objects
+export interface KeyComparisonResult {
+  sourceKeys: Set<string>;
+  outputKeys: Set<string>;
+  missingKeys: Set<string>;
+  extraKeys: Set<string>;
+  isValid: boolean;
+}
+
+export function compareKeys(sourceObj: JsonObject, outputObj: JsonObject, ignoredKeys: string[] = ['_translator_metadata']): KeyComparisonResult {
+  const sourceKeys = new Set<string>();
+  const outputKeys = new Set<string>();
+  
+  // Collect all keys from source
+  function collectKeys(obj: JsonValue, prefix: string = '', targetSet: Set<string>): void {
+    if (typeof obj === 'object' && obj !== null && !Array.isArray(obj)) {
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          const fullKey = prefix ? `${prefix}.${key}` : key;
+          targetSet.add(fullKey);
+          collectKeys(obj[key], fullKey, targetSet);
+        }
+      }
+    } else if (Array.isArray(obj)) {
+      // For arrays, we track the array key but not individual indices
+      // This is because translation might change array lengths
+      if (prefix) {
+        targetSet.add(prefix);
+      }
+    } else {
+      // For leaf values, add the key
+      if (prefix) {
+        targetSet.add(prefix);
+      }
+    }
+  }
+  
+  collectKeys(sourceObj, '', sourceKeys);
+  collectKeys(outputObj, '', outputKeys);
+  
+  // Remove ignored keys from output
+  for (const ignoredKey of ignoredKeys) {
+    outputKeys.delete(ignoredKey);
+    // Also remove any nested keys under ignored keys
+    for (const key of outputKeys) {
+      if (key.startsWith(ignoredKey + '.')) {
+        outputKeys.delete(key);
+      }
+    }
+  }
+  
+  // Find missing and extra keys
+  const missingKeys = new Set<string>();
+  const extraKeys = new Set<string>();
+  
+  for (const key of sourceKeys) {
+    if (!outputKeys.has(key)) {
+      missingKeys.add(key);
+    }
+  }
+  
+  for (const key of outputKeys) {
+    if (!sourceKeys.has(key)) {
+      extraKeys.add(key);
+    }
+  }
+  
+  return {
+    sourceKeys,
+    outputKeys,
+    missingKeys,
+    extraKeys,
+    isValid: missingKeys.size === 0
+  };
+}
