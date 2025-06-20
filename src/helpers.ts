@@ -174,3 +174,24 @@ export function restoreFormats(text: string, preservedFormat: PreservedFormat): 
   
   return restored;
 }
+
+// Sort object keys alphabetically (case-insensitive)
+export function sortObjectKeys(obj: JsonValue): JsonValue {
+  if (Array.isArray(obj)) {
+    // For arrays, sort the contents but maintain array structure
+    return obj.map(item => sortObjectKeys(item));
+  } else if (typeof obj === 'object' && obj !== null) {
+    // For objects, sort keys alphabetically
+    const sorted: JsonObject = {};
+    const keys = Object.keys(obj).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+    
+    for (const key of keys) {
+      sorted[key] = sortObjectKeys(obj[key]);
+    }
+    
+    return sorted;
+  }
+  
+  // For primitive values, return as-is
+  return obj;
+}

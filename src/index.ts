@@ -8,7 +8,7 @@ import ora, { Ora } from 'ora';
 import dotenv from 'dotenv';
 import { performance } from 'perf_hooks';
 import { glob } from 'glob';
-import { hashString, getCacheDirectory, getDefaultCacheFilePath, flattenObjectWithPaths, unflattenObject, JsonObject, JsonValue, preserveFormats, restoreFormats, PreservedFormat } from './helpers';
+import { hashString, getCacheDirectory, getDefaultCacheFilePath, flattenObjectWithPaths, unflattenObject, JsonObject, JsonValue, preserveFormats, restoreFormats, PreservedFormat, sortObjectKeys } from './helpers';
 import { TranslatorFactory, TranslatorType } from './translators/factory';
 import { TranslationProvider } from './translators/base';
 
@@ -241,7 +241,8 @@ async function processSingleFile(
   detectSource: boolean = false,
   dryRun: boolean = false,
   preserveFormats: boolean = false,
-  includeMetadata: boolean = true
+  includeMetadata: boolean = false,
+  sortKeys: boolean = false
 ): Promise<void> {
   const t = { start: performance.now(), last: performance.now() };
   const stats: PerformanceStats = {
@@ -428,7 +429,12 @@ async function processSingleFile(
     const translatedString = translations.get(h) || sourceString; // Fallback to original if translation failed
     finalFlatMap.set(path, translatedString);
   }
-  const translatedJson = unflattenObject(finalFlatMap);
+  let translatedJson = unflattenObject(finalFlatMap);
+  
+  // Apply sorting if requested
+  if (sortKeys) {
+    translatedJson = sortObjectKeys(translatedJson) as JsonObject;
+  }
   
   // Add metadata using _comment convention
   let outputJson = translatedJson;
@@ -482,7 +488,8 @@ async function processMultipleFiles(
   detectSource: boolean = false,
   dryRun: boolean = false,
   preserveFormats: boolean = false,
-  includeMetadata: boolean = true
+  includeMetadata: boolean = false,
+  sortKeys: boolean = false
 ): Promise<void> {
   const t = { start: performance.now(), last: performance.now() };
   const stats: MultiFileStats = {
@@ -767,11 +774,16 @@ async function processMultipleFiles(
       translatedFlatMap.set(path, translation);
     }
 
-    const translatedJson = unflattenObject(translatedFlatMap);
+    let translatedJson = unflattenObject(translatedFlatMap);
+    
+    // Apply sorting if requested
+    if (sortKeys) {
+      translatedJson = sortObjectKeys(translatedJson) as JsonObject;
+    }
     
     // Add metadata using _comment convention
     let outputJson = translatedJson;
-    if (includeMetadata !== false) {
+    if (includeMetadata) {
       outputJson = {
         "_translator_metadata": {
           "tool": "translator-ai v1.0.9",
@@ -851,14 +863,15 @@ async function main() {
     .option('--detect-source', 'Auto-detect source language instead of assuming English')
     .option('--dry-run', 'Preview what would be translated without making API calls')
     .option('--preserve-formats', 'Preserve URLs, emails, numbers, dates, and other formats')
-    .option('--no-metadata', 'Disable adding metadata to output files')
+    .option('--metadata', 'Add translation metadata to output files (may break some i18n parsers)')
+    .option('--sort-keys', 'Sort output JSON keys alphabetically')
     .parse(process.argv);
 
   const inputFiles = program.args;
   const { 
     lang, output, stdout, stats: showStats, cache, cacheFile,
     provider, ollamaUrl, ollamaModel, detectSource, dryRun, verbose, preserveFormats: shouldPreserveFormats,
-    metadata: includeMetadata
+    metadata, sortKeys
   } = program.opts();
 
   if (!output && !stdout) {
@@ -907,9 +920,9 @@ async function main() {
       }
       
       if (isSingleFile) {
-        await processSingleFile(inputFiles[0], targetLang, output, stdout, showStats, cache, cacheFile, translator, detectSource, dryRun, shouldPreserveFormats, includeMetadata);
+        await processSingleFile(inputFiles[0], targetLang, output, stdout, showStats, cache, cacheFile, translator, detectSource, dryRun, shouldPreserveFormats, metadata, sortKeys);
       } else {
-        await processMultipleFiles(inputFiles, targetLang, output, stdout, showStats, cache, cacheFile, translator, detectSource, dryRun, shouldPreserveFormats, includeMetadata);
+        await processMultipleFiles(inputFiles, targetLang, output, stdout, showStats, cache, cacheFile, translator, detectSource, dryRun, shouldPreserveFormats, metadata, sortKeys);
       }
     }
   } catch (error) {
