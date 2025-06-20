@@ -45,10 +45,10 @@ describe('Ollama Integration Tests', () => {
       return;
     }
 
-    const result = await translator.translate(['Hello'], 'es');
+    const result = await translator.translate(['Hello world'], 'es');
     expect(result).toHaveLength(1);
     expect(typeof result[0]).toBe('string');
-    expect(result[0].toLowerCase()).not.toBe('hello'); // Should be translated
+    expect(result[0].toLowerCase()).not.toBe('hello world'); // Should be translated
     console.log('Translation result:', result);
   }, 30000); // 30 second timeout
 

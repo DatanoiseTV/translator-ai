@@ -228,6 +228,22 @@ Output:`;
             return parsed;
           } else if (parsed.translations && Array.isArray(parsed.translations)) {
             return parsed.translations;
+          } else if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+            // Handle DeepSeek's object format where each key maps to an array
+            const keys = Object.keys(parsed);
+            if (keys.length === strings.length) {
+              // Check if each value is an array with one element
+              const allArrays = keys.every(key => Array.isArray(parsed[key]) && parsed[key].length === 1);
+              if (allArrays) {
+                // Extract the first element from each array in order
+                return strings.map(str => {
+                  const translation = parsed[str];
+                  return Array.isArray(translation) ? translation[0] : translation;
+                });
+              }
+              // Or if it's a simple key-value mapping
+              return strings.map(str => parsed[str] || str);
+            }
           }
           throw new Error('Not a valid translation format');
         },
