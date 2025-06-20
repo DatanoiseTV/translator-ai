@@ -1,0 +1,11 @@
+{
+  "greeting": "Hola",
+  "farewell": "Adiós",
+  "nested": {
+    "message": "Bienvenido",
+    "items": [
+      "Primero",
+      "Segundo"
+    ]
+  }
+}

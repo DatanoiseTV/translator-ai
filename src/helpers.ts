@@ -13,11 +13,11 @@ export function getCacheDirectory(): string {
   const homeDir = os.homedir();
   
   if (platform === 'win32') {
-    return path.join(process.env.APPDATA || path.join(homeDir, 'AppData', 'Roaming'), 'translator-gemini');
+    return path.join(process.env.APPDATA || path.join(homeDir, 'AppData', 'Roaming'), 'translator-ai');
   } else if (platform === 'darwin') {
-    return path.join(homeDir, 'Library', 'Caches', 'translator-gemini');
+    return path.join(homeDir, 'Library', 'Caches', 'translator-ai');
   } else {
-    return path.join(process.env.XDG_CACHE_HOME || path.join(homeDir, '.cache'), 'translator-gemini');
+    return path.join(process.env.XDG_CACHE_HOME || path.join(homeDir, '.cache'), 'translator-ai');
   }
 }
 

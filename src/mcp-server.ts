@@ -14,7 +14,7 @@ const execAsync = promisify(exec);
 
 const server = new Server(
   {
-    name: "translator-gemini",
+    name: "translator-ai",
     version: "1.0.5",
   },
   {
@@ -38,7 +38,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
       // Build the command
       const provider = process.env.TRANSLATOR_PROVIDER || 'gemini';
-      const cmd = `translator-gemini "${inputFile}" -l ${targetLanguage} -o "${outputFile}" --provider ${provider}`;
+      const cmd = `translator-ai "${inputFile}" -l ${targetLanguage} -o "${outputFile}" --provider ${provider}`;
       
       // Execute the command
       const { stdout, stderr } = await execAsync(cmd, {
@@ -79,7 +79,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       // Build the command
       const statsFlag = showStats ? "--stats" : "";
       const provider = process.env.TRANSLATOR_PROVIDER || 'gemini';
-      const cmd = `translator-gemini ${pattern} -l ${targetLanguage} -o "${outputPattern}" ${statsFlag} --provider ${provider}`;
+      const cmd = `translator-ai ${pattern} -l ${targetLanguage} -o "${outputPattern}" ${statsFlag} --provider ${provider}`;
       
       // Execute the command
       const { stdout, stderr } = await execAsync(cmd, {
@@ -183,7 +183,7 @@ async function main() {
   await server.connect(transport);
   
   // Log to stderr so it doesn't interfere with MCP communication
-  console.error("translator-gemini MCP server running");
+  console.error("translator-ai MCP server running");
 }
 
 main().catch((error) => {

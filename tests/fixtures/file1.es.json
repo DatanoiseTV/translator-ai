@@ -1,0 +1,5 @@
+{
+  "greeting": "Hola",
+  "shared": "Este texto aparece en múltiples archivos",
+  "unique1": "Esto es exclusivo del archivo 1"
+}

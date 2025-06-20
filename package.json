@@ -1,11 +1,11 @@
 {
-  "name": "translator-gemini",
+  "name": "translator-ai",
   "version": "1.0.5",
-  "description": "Fast JSON i18n translator with Google Gemini API, incremental caching, multi-file deduplication, and MCP support for Claude Desktop",
+  "description": "Fast JSON i18n translator with AI support (Google Gemini & Ollama), incremental caching, multi-file deduplication, and MCP support",
   "main": "dist/index.js",
   "bin": {
-    "translator-gemini": "dist/index.js",
-    "translator-gemini-mcp": "dist/mcp-server.js"
+    "translator-ai": "dist/index.js",
+    "translator-ai-mcp": "dist/mcp-server.js"
   },
   "scripts": {
     "start": "ts-node src/index.ts",
@@ -33,12 +33,12 @@
   "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DatanoiseTV/translator-gemini.git"
+    "url": "git+https://github.com/DatanoiseTV/translator-ai.git"
   },
   "bugs": {
-    "url": "https://github.com/DatanoiseTV/translator-gemini/issues"
+    "url": "https://github.com/DatanoiseTV/translator-ai/issues"
   },
-  "homepage": "https://github.com/DatanoiseTV/translator-gemini#readme",
+  "homepage": "https://github.com/DatanoiseTV/translator-ai#readme",
   "engines": {
     "node": ">=14.0.0"
   },

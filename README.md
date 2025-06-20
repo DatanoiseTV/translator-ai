@@ -1,4 +1,4 @@
-# translator-gemini
+# translator-ai
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?style=flat-square&logo=buy-me-a-coffee)](https://coff.ee/datanoisetv)
 
@@ -20,13 +20,13 @@ Fast and efficient JSON i18n translator powered by Google Gemini API with increm
 ### Global Installation (Recommended)
 
 ```bash
-npm install -g translator-gemini
+npm install -g translator-ai
 ```
 
 ### Local Installation
 
 ```bash
-npm install translator-gemini
+npm install translator-ai
 ```
 
 ## Configuration
@@ -52,7 +52,7 @@ For completely local translation without API costs:
    ```
 3. Use the `--provider ollama` flag:
    ```bash
-   translator-gemini source.json -l es -o spanish.json --provider ollama
+   translator-ai source.json -l es -o spanish.json --provider ollama
    ```
 
 ## Usage
@@ -187,9 +187,9 @@ Example: If 10 files share 50% of their strings, you save ~50% on API calls!
 
 ### Default Cache Locations
 
-- **Windows**: `%APPDATA%\translator-gemini\translation-cache.json`
-- **macOS**: `~/Library/Caches/translator-gemini/translation-cache.json`
-- **Linux**: `~/.cache/translator-gemini/translation-cache.json`
+- **Windows**: `%APPDATA%\translator-ai\translation-cache.json`
+- **macOS**: `~/Library/Caches/translator-ai/translation-cache.json`
+- **Linux**: `~/.cache/translator-ai/translation-cache.json`
 
 The cache file stores translations indexed by:
 - Source file path
@@ -248,11 +248,11 @@ Add to your Claude Desktop configuration:
 ```json
 {
   "mcpServers": {
-    "translator-gemini": {
+    "translator-ai": {
       "command": "npx",
       "args": [
         "-y",
-        "translator-gemini-mcp"
+        "translator-ai-mcp"
       ],
       "env": {
         "GEMINI_API_KEY": "your-gemini-api-key-here"
@@ -271,7 +271,7 @@ Once configured, you can ask Claude to translate files:
 ```
 Human: Can you translate my English locale file to Spanish?
 
-Claude: I'll translate your English locale file to Spanish using translator-gemini.
+Claude: I'll translate your English locale file to Spanish using translator-ai.
 
 <use_tool name="translate_json">
 {
@@ -1063,8 +1063,8 @@ If you frequently work with YAML files, consider creating a wrapper script that 
 ### Building from source
 
 ```bash
-git clone https://github.com/DatanoiseTV/translator-gemini.git
-cd translator-gemini
+git clone https://github.com/DatanoiseTV/translator-ai.git
+cd translator-ai
 npm install
 npm run build
 ```
@@ -1085,7 +1085,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Support
 
-For issues, questions, or suggestions, please open an issue on [GitHub](https://github.com/DatanoiseTV/translator-gemini/issues).
+For issues, questions, or suggestions, please open an issue on [GitHub](https://github.com/DatanoiseTV/translator-ai/issues).
 
 If you find this tool useful, consider supporting the development:
 

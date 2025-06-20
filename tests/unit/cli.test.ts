@@ -20,7 +20,7 @@ describe('CLI Argument Parsing', () => {
   });
 
   it('should parse basic required arguments', () => {
-    const args = ['node', 'translator-gemini', 'input.json', '-l', 'es', '-o', 'output.json'];
+    const args = ['node', 'translator-ai', 'input.json', '-l', 'es', '-o', 'output.json'];
     program.parse(args);
     
     const opts = program.opts();
@@ -30,7 +30,7 @@ describe('CLI Argument Parsing', () => {
   });
 
   it('should parse multiple input files', () => {
-    const args = ['node', 'translator-gemini', 'file1.json', 'file2.json', 'file3.json', '-l', 'es', '-o', '{name}.{lang}.json'];
+    const args = ['node', 'translator-ai', 'file1.json', 'file2.json', 'file3.json', '-l', 'es', '-o', '{name}.{lang}.json'];
     program.parse(args);
     
     const opts = program.opts();
@@ -40,7 +40,7 @@ describe('CLI Argument Parsing', () => {
   });
 
   it('should handle glob patterns', () => {
-    const args = ['node', 'translator-gemini', 'src/**/*.json', '-l', 'fr', '-o', '{dir}/{name}.{lang}.json'];
+    const args = ['node', 'translator-ai', 'src/**/*.json', '-l', 'fr', '-o', '{dir}/{name}.{lang}.json'];
     program.parse(args);
     
     const opts = program.opts();
@@ -49,7 +49,7 @@ describe('CLI Argument Parsing', () => {
   });
 
   it('should handle stdout option', () => {
-    const args = ['node', 'translator-gemini', 'input.json', '-l', 'fr', '--stdout'];
+    const args = ['node', 'translator-ai', 'input.json', '-l', 'fr', '--stdout'];
     program.parse(args);
     
     const opts = program.opts();
@@ -58,7 +58,7 @@ describe('CLI Argument Parsing', () => {
   });
 
   it('should handle stats option', () => {
-    const args = ['node', 'translator-gemini', 'input.json', '-l', 'de', '-o', 'output.json', '--stats'];
+    const args = ['node', 'translator-ai', 'input.json', '-l', 'de', '-o', 'output.json', '--stats'];
     program.parse(args);
     
     const opts = program.opts();
@@ -66,7 +66,7 @@ describe('CLI Argument Parsing', () => {
   });
 
   it('should handle no-cache option', () => {
-    const args = ['node', 'translator-gemini', 'input.json', '-l', 'ja', '-o', 'output.json', '--no-cache'];
+    const args = ['node', 'translator-ai', 'input.json', '-l', 'ja', '-o', 'output.json', '--no-cache'];
     program.parse(args);
     
     const opts = program.opts();
@@ -74,7 +74,7 @@ describe('CLI Argument Parsing', () => {
   });
 
   it('should handle custom cache file', () => {
-    const args = ['node', 'translator-gemini', 'input.json', '-l', 'ko', '-o', 'output.json', '--cache-file', '/custom/path/cache.json'];
+    const args = ['node', 'translator-ai', 'input.json', '-l', 'ko', '-o', 'output.json', '--cache-file', '/custom/path/cache.json'];
     program.parse(args);
     
     const opts = program.opts();
@@ -82,7 +82,7 @@ describe('CLI Argument Parsing', () => {
   });
 
   it('should have default cache file', () => {
-    const args = ['node', 'translator-gemini', 'input.json', '-l', 'zh', '-o', 'output.json'];
+    const args = ['node', 'translator-ai', 'input.json', '-l', 'zh', '-o', 'output.json'];
     program.parse(args);
     
     const opts = program.opts();
@@ -90,14 +90,14 @@ describe('CLI Argument Parsing', () => {
   });
 
   it('should throw error when lang is missing', () => {
-    const args = ['node', 'translator-gemini', 'input.json', '-o', 'output.json'];
+    const args = ['node', 'translator-ai', 'input.json', '-o', 'output.json'];
     
     expect(() => program.parse(args)).toThrow();
   });
 
   it('should throw error when both output and stdout are missing', () => {
     // This test simulates the validation logic
-    const args = ['node', 'translator-gemini', 'input.json', '-l', 'es'];
+    const args = ['node', 'translator-ai', 'input.json', '-l', 'es'];
     program.parse(args);
     
     const opts = program.opts();
@@ -109,7 +109,7 @@ describe('CLI Argument Parsing', () => {
   it('should handle version flag', () => {
     const mockLog = jest.spyOn(console, 'log').mockImplementation();
     
-    const args = ['node', 'translator-gemini', '--version'];
+    const args = ['node', 'translator-ai', '--version'];
     
     // exitOverride causes it to throw with the version string
     expect(() => program.parse(args)).toThrow('1.0.4');

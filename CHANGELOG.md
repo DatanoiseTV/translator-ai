@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - No API costs - runs entirely on local hardware
 
 - **Model Context Protocol (MCP)**: Added MCP server for Claude Desktop integration
-  - New `translator-gemini-mcp` binary for MCP server
+  - New `translator-ai-mcp` binary for MCP server
   - Supports both Gemini and Ollama providers via environment variable
   - Enables direct file translation within Claude conversations
 
@@ -63,9 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - GitHub Actions workflow for automated npm publishing
 - Cross-platform cache directory support
-  - Windows: `%APPDATA%\translator-gemini\`
-  - macOS: `~/Library/Caches/translator-gemini/`
-  - Linux: `~/.cache/translator-gemini/`
+  - Windows: `%APPDATA%\translator-ai\`
+  - macOS: `~/Library/Caches/translator-ai/`
+  - Linux: `~/.cache/translator-ai/`
 
 ### Fixed
 - Build issues with postbuild script

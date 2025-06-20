@@ -1,0 +1,98 @@
+{
+  "app": {
+    "title": "Moja aplikacja",
+    "description": "Witamy w naszej niesamowitej aplikacji"
+  },
+  "navigation": {
+    "home": "Strona główna",
+    "about": "O nas",
+    "contact": "Kontakt",
+    "services": "Usługi",
+    "portfolio": "Portfolio"
+  },
+  "buttons": {
+    "submit": "Prześlij",
+    "cancel": "Anuluj",
+    "save": "Zapisz",
+    "delete": "Usuń",
+    "confirm": "Potwierdź",
+    "actions": {
+      "edit": "Edytuj",
+      "view": "Wyświetl",
+      "download": "Pobierz"
+    }
+  },
+  "messages": {
+    "success": "Operacja zakończona pomyślnie!",
+    "error": "Wystąpił błąd. Spróbuj ponownie.",
+    "warning": "Przed kontynuowaniem sprawdź swoje dane.",
+    "info": "To jest informacja.",
+    "validation": {
+      "required": "To pole jest wymagane",
+      "email": "Wprowadź poprawny adres e-mail",
+      "minLength": "Minimalna długość to {{min}} znaków",
+      "maxLength": "Maksymalna długość to {{max}} znaków"
+    }
+  },
+  "user": {
+    "profile": {
+      "title": "Profil użytkownika",
+      "firstName": "Imię",
+      "lastName": "Nazwisko",
+      "email": "Adres e-mail",
+      "phone": "Numer telefonu",
+      "address": {
+        "street": "Adres",
+        "city": "Miasto",
+        "state": "Województwo",
+        "zipCode": "Kod pocztowy",
+        "country": "Kraj"
+      }
+    },
+    "settings": {
+      "title": "Ustawienia",
+      "language": "Język",
+      "theme": "Motyw",
+      "notifications": "Powiadomienia",
+      "privacy": "Prywatność"
+    }
+  },
+  "products": {
+    "title": "Nasze produkty",
+    "categories": [
+      "Elektronika",
+      "Odzież",
+      "Książki",
+      "Dom i ogród"
+    ],
+    "filters": {
+      "price": "Przedział cenowy",
+      "brand": "Marka",
+      "rating": "Ocena klienta",
+      "availability": "Tylko w magazynie"
+    },
+    "sorting": {
+      "relevance": "Najbardziej trafne",
+      "priceAsc": "Cena: od najniższej do najwyższej",
+      "priceDesc": "Cena: od najwyższej do najniższej",
+      "newest": "Najnowsze najpierw"
+    }
+  },
+  "footer": {
+    "copyright": "© 2024 Moja aplikacja. Wszelkie prawa zastrzeżone.",
+    "links": {
+      "terms": "Warunki korzystania z usługi",
+      "privacy": "Polityka prywatności",
+      "cookies": "Polityka plików cookie"
+    },
+    "social": {
+      "followUs": "Śledź nas w mediach społecznościowych",
+      "platforms": [
+        "Facebook",
+        "Twitter",
+        "Instagram",
+        "LinkedIn"
+      ]
+    }
+  }
+}

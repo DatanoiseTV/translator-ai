@@ -45,7 +45,7 @@ describe('Helper Functions', () => {
       process.env.APPDATA = 'C:\\Users\\Test\\AppData\\Roaming';
       
       const cacheDir = getCacheDirectory();
-      expect(cacheDir).toBe(path.join('C:\\Users\\Test\\AppData\\Roaming', 'translator-gemini'));
+      expect(cacheDir).toBe(path.join('C:\\Users\\Test\\AppData\\Roaming', 'translator-ai'));
     });
 
     it('should return macOS cache directory on darwin', () => {
@@ -55,7 +55,7 @@ describe('Helper Functions', () => {
       
       const homeDir = os.homedir();
       const cacheDir = getCacheDirectory();
-      expect(cacheDir).toBe(path.join(homeDir, 'Library', 'Caches', 'translator-gemini'));
+      expect(cacheDir).toBe(path.join(homeDir, 'Library', 'Caches', 'translator-ai'));
     });
 
     it('should return Linux cache directory on linux', () => {
@@ -66,7 +66,7 @@ describe('Helper Functions', () => {
       
       const homeDir = os.homedir();
       const cacheDir = getCacheDirectory();
-      expect(cacheDir).toBe(path.join(homeDir, '.cache', 'translator-gemini'));
+      expect(cacheDir).toBe(path.join(homeDir, '.cache', 'translator-ai'));
     });
 
     it('should use XDG_CACHE_HOME on Linux if set', () => {
@@ -76,14 +76,14 @@ describe('Helper Functions', () => {
       process.env.XDG_CACHE_HOME = '/custom/cache';
       
       const cacheDir = getCacheDirectory();
-      expect(cacheDir).toBe(path.join('/custom/cache', 'translator-gemini'));
+      expect(cacheDir).toBe(path.join('/custom/cache', 'translator-ai'));
     });
   });
 
   describe('getDefaultCacheFilePath', () => {
     it('should return cache file path in cache directory', () => {
       const cacheFilePath = getDefaultCacheFilePath();
-      expect(cacheFilePath).toContain('translator-gemini');
+      expect(cacheFilePath).toContain('translator-ai');
       expect(cacheFilePath).toContain('translation-cache.json');
     });
   });

@@ -5,12 +5,12 @@ import os from 'os';
 // Mock the helpers module to avoid circular dependencies
 jest.mock('../../src/helpers', () => ({
   ...jest.requireActual('../../src/helpers'),
-  getCacheDirectory: jest.fn(() => path.join(os.tmpdir(), 'translator-gemini-test')),
-  getDefaultCacheFilePath: jest.fn(() => path.join(os.tmpdir(), 'translator-gemini-test', 'cache.json'))
+  getCacheDirectory: jest.fn(() => path.join(os.tmpdir(), 'translator-ai-test')),
+  getDefaultCacheFilePath: jest.fn(() => path.join(os.tmpdir(), 'translator-ai-test', 'cache.json'))
 }));
 
 describe('Cache Functions', () => {
-  const testCacheDir = path.join(os.tmpdir(), 'translator-gemini-test');
+  const testCacheDir = path.join(os.tmpdir(), 'translator-ai-test');
   const testCacheFile = path.join(testCacheDir, 'test-cache.json');
 
   beforeEach(async () => {
