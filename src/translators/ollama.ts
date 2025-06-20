@@ -24,6 +24,13 @@ export class OllamaTranslator extends BaseTranslator {
     // For DeepSeek-R1, we need to format the prompt in their expected format
     const isDeepSeek = this.model.includes('deepseek');
     
+    // Add verbose logging
+    if (process.env.OLLAMA_VERBOSE === 'true' || process.argv.includes('--verbose')) {
+      console.error(`[Ollama] Model: ${this.model}`);
+      console.error(`[Ollama] Target language: ${targetLang}`);
+      console.error(`[Ollama] Strings to translate: ${JSON.stringify(strings)}`);
+    }
+    
     let prompt: string;
     if (isDeepSeek) {
       // DeepSeek format with explicit user/assistant markers
@@ -54,27 +61,33 @@ Output:`;
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
     
     try {
+      const requestBody = {
+        model: this.model,
+        prompt: prompt,
+        stream: false,
+        options: {
+          temperature: 0.1, // Lower for more consistent translations
+          top_p: 0.95, // DeepSeek R1 default
+          stop: [
+            "<｜begin▁of▁sentence｜>",
+            "<｜end▁of▁sentence｜>",
+            "<｜User｜>",
+            "<｜Assistant｜>"
+          ],
+        },
+        format: 'json',
+      };
+      
+      if (process.env.OLLAMA_VERBOSE === 'true' || process.argv.includes('--verbose')) {
+        console.error(`[Ollama] Request body: ${JSON.stringify(requestBody, null, 2)}`);
+      }
+      
       const response = await fetch(`${this.baseUrl}/api/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          model: this.model,
-          prompt: prompt,
-          stream: false,
-          options: {
-            temperature: 0.1, // Lower for more consistent translations
-            top_p: 0.95, // DeepSeek R1 default
-            stop: [
-              "<｜begin▁of▁sentence｜>",
-              "<｜end▁of▁sentence｜>",
-              "<｜User｜>",
-              "<｜Assistant｜>"
-            ],
-          },
-          format: 'json',
-        }),
+        body: JSON.stringify(requestBody),
         signal: controller.signal,
       });
       
@@ -87,11 +100,19 @@ Output:`;
       const data = await response.json() as any;
       let responseText = data.response;
       
+      if (process.env.OLLAMA_VERBOSE === 'true' || process.argv.includes('--verbose')) {
+        console.error(`[Ollama] Raw response: ${JSON.stringify(data, null, 2)}`);
+      }
+      
       // Remove DeepSeek thinking tags if present
       if (this.model.includes('deepseek')) {
         responseText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
         // Also remove any trailing end markers
         responseText = responseText.replace(/<｜end▁of▁sentence｜>/g, '').trim();
+      }
+      
+      if (process.env.OLLAMA_VERBOSE === 'true' || process.argv.includes('--verbose')) {
+        console.error(`[Ollama] Cleaned response text: ${responseText}`);
       }
       
       // Extract JSON from the response
@@ -100,12 +121,17 @@ Output:`;
         // Try to parse the entire response as JSON
         const parsed = JSON.parse(responseText);
         
-        // Check if it's an array or object
+        // Check if it's an array or object with translations property
         if (Array.isArray(parsed)) {
           translations = parsed;
         } else if (typeof parsed === 'object' && parsed !== null) {
-          // If it's an object, extract values in order of input strings
-          translations = strings.map(str => parsed[str] || str);
+          // Check if it has a translations property
+          if (parsed.translations && Array.isArray(parsed.translations)) {
+            translations = parsed.translations;
+          } else {
+            // If it's an object, extract values in order of input strings
+            translations = strings.map(str => parsed[str] || str);
+          }
         } else {
           throw new Error('Invalid JSON response format');
         }

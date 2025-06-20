@@ -644,6 +644,7 @@ async function main() {
     .option('--ollama-url <url>', 'Ollama API URL', 'http://localhost:11434')
     .option('--ollama-model <model>', 'Ollama model name', 'deepseek-r1:latest')
     .option('--list-providers', 'List available translation providers')
+    .option('--verbose', 'Enable verbose output for debugging')
     .parse(process.argv);
 
   const inputFiles = program.args;
