@@ -109,8 +109,8 @@ describe('Helper Functions', () => {
       };
       const result = flattenObjectWithPaths(obj);
       
-      expect(result.get('user.name')).toBe('John');
-      expect(result.get('user.address.city')).toBe('New York');
+      expect(result.get('user\x00name')).toBe('John');
+      expect(result.get('user\x00address\x00city')).toBe('New York');
       expect(result.size).toBe(2);
     });
 
@@ -120,9 +120,9 @@ describe('Helper Functions', () => {
       };
       const result = flattenObjectWithPaths(obj);
       
-      expect(result.get('items[0]')).toBe('apple');
-      expect(result.get('items[1]')).toBe('banana');
-      expect(result.get('items[2]')).toBe('cherry');
+      expect(result.get('items\x00[0]')).toBe('apple');
+      expect(result.get('items\x00[1]')).toBe('banana');
+      expect(result.get('items\x00[2]')).toBe('cherry');
       expect(result.size).toBe(3);
     });
 
@@ -180,8 +180,8 @@ describe('Helper Functions', () => {
 
     it('should unflatten nested paths', () => {
       const flatMap = new Map([
-        ['user.name', 'John'],
-        ['user.address.city', 'New York']
+        ['user\x00name', 'John'],
+        ['user\x00address\x00city', 'New York']
       ]);
       const result = unflattenObject(flatMap);
       
@@ -197,9 +197,9 @@ describe('Helper Functions', () => {
 
     it('should unflatten array paths', () => {
       const flatMap = new Map([
-        ['items[0]', 'apple'],
-        ['items[1]', 'banana'],
-        ['items[2]', 'cherry']
+        ['items\x00[0]', 'apple'],
+        ['items\x00[1]', 'banana'],
+        ['items\x00[2]', 'cherry']
       ]);
       const result = unflattenObject(flatMap);
       
@@ -210,10 +210,10 @@ describe('Helper Functions', () => {
 
     it('should handle mixed nested structures', () => {
       const flatMap = new Map([
-        ['user.name', 'John'],
-        ['user.tags[0]', 'admin'],
-        ['user.tags[1]', 'developer'],
-        ['settings.theme', 'dark']
+        ['user\x00name', 'John'],
+        ['user\x00tags\x00[0]', 'admin'],
+        ['user\x00tags\x00[1]', 'developer'],
+        ['settings\x00theme', 'dark']
       ]);
       const result = unflattenObject(flatMap);
       

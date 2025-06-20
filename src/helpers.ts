@@ -25,17 +25,27 @@ export function getDefaultCacheFilePath(): string {
   return path.join(getCacheDirectory(), 'translation-cache.json');
 }
 
+// Use a unique separator that won't appear in normal keys
+const PATH_SEPARATOR = '\x00';
+const DOT_ESCAPE = '\x01';
+
 export function flattenObjectWithPaths(obj: JsonValue, currentPath: string = '', result: Map<string, string> = new Map()): Map<string, string> {
   if (typeof obj === 'string') {
     if (/[a-zA-Z]/.test(obj) && !/^{{.*}}$/.test(obj)) {
       result.set(currentPath, obj);
     }
   } else if (Array.isArray(obj)) {
-    obj.forEach((item, index) => flattenObjectWithPaths(item, `${currentPath}[${index}]`, result));
+    obj.forEach((item, index) => {
+      const newPath = currentPath ? `${currentPath}${PATH_SEPARATOR}[${index}]` : `[${index}]`;
+      flattenObjectWithPaths(item, newPath, result);
+    });
   } else if (typeof obj === 'object' && obj !== null) {
     for (const key in obj) {
       if(Object.prototype.hasOwnProperty.call(obj, key)) {
-        flattenObjectWithPaths(obj[key], currentPath ? `${currentPath}.${key}` : key, result);
+        // Escape dots in the key to preserve them
+        const escapedKey = key.replace(/\./g, DOT_ESCAPE);
+        const newPath = currentPath ? `${currentPath}${PATH_SEPARATOR}${escapedKey}` : escapedKey;
+        flattenObjectWithPaths(obj[key], newPath, result);
       }
     }
   }
@@ -44,19 +54,44 @@ export function flattenObjectWithPaths(obj: JsonValue, currentPath: string = '',
 
 export function unflattenObject(flatMap: Map<string, string>): JsonObject {
   const result: JsonObject = {};
+  
   for (const [path, value] of flatMap.entries()) {
-    const keys = path.match(/[^.[\]]+/g) || [];
-    keys.reduce((acc: any, key: string, index: number) => {
-      if (index === keys.length - 1) {
-        acc[key] = value;
+    const parts = path.split(PATH_SEPARATOR);
+    
+    let current: any = result;
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const isLast = i === parts.length - 1;
+      
+      if (part.startsWith('[') && part.endsWith(']')) {
+        // Array index
+        const index = parseInt(part.slice(1, -1));
+        if (isLast) {
+          current[index] = value;
+        } else {
+          if (!current[index]) {
+            // Look ahead to determine if next is array or object
+            const nextPart = parts[i + 1];
+            current[index] = nextPart.startsWith('[') ? [] : {};
+          }
+          current = current[index];
+        }
       } else {
-        const nextKeyIsNumeric = /^\d+$/.test(keys[index + 1]);
-        if (!acc[key]) {
-          acc[key] = nextKeyIsNumeric ? [] : {};
+        // Regular key - unescape dots
+        const key = part.replace(new RegExp(DOT_ESCAPE, 'g'), '.');
+        if (isLast) {
+          current[key] = value;
+        } else {
+          if (!current[key]) {
+            // Look ahead to determine if next is array or object
+            const nextPart = parts[i + 1];
+            current[key] = nextPart.startsWith('[') ? [] : {};
+          }
+          current = current[key];
         }
       }
-      return acc[key];
-    }, result);
+    }
   }
+  
   return result;
 }
