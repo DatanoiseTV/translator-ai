@@ -4,11 +4,11 @@
 [![npm version](https://badge.fury.io/js/translator-ai.svg)](https://www.npmjs.com/package/translator-ai)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?style=flat-square&logo=buy-me-a-coffee)](https://coff.ee/datanoisetv)
 
-Fast and efficient JSON i18n translator supporting multiple AI providers (Google Gemini & Ollama/DeepSeek) with intelligent caching, multi-file deduplication, and MCP integration.
+Fast and efficient JSON i18n translator supporting multiple AI providers (Google Gemini, OpenAI & Ollama/DeepSeek) with intelligent caching, multi-file deduplication, and MCP integration.
 
 ## Features
 
-- **Multiple AI Providers**: Choose between Google Gemini (cloud) or Ollama/DeepSeek (local) for translations
+- **Multiple AI Providers**: Choose between Google Gemini, OpenAI (cloud) or Ollama/DeepSeek (local) for translations
 - **Multi-File Support**: Process multiple files with automatic deduplication to save API calls
 - **Incremental Caching**: Only translates new or modified strings, dramatically reducing API calls
 - **Batch Processing**: Intelligently batches translations for optimal performance
@@ -48,7 +48,17 @@ GEMINI_API_KEY=your_gemini_api_key_here
 
 Get your API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
 
-### Option 2: Ollama with DeepSeek-R1 (Local)
+### Option 2: OpenAI API (Cloud)
+
+Create a `.env` file in your project root or set the environment variable:
+
+```bash
+OPENAI_API_KEY=your_openai_api_key_here
+```
+
+Get your API key from [OpenAI Platform](https://platform.openai.com/api-keys).
+
+### Option 3: Ollama with DeepSeek-R1 (Local)
 
 For completely local translation without API costs:
 
@@ -92,9 +102,11 @@ Options:
   --stats                     Show detailed performance statistics
   --no-cache                  Disable incremental translation cache
   --cache-file <path>         Custom cache file path
-  --provider <type>           Translation provider: gemini or ollama (default: gemini)
+  --provider <type>           Translation provider: gemini, openai, or ollama (default: gemini)
   --ollama-url <url>          Ollama API URL (default: http://localhost:11434)
   --ollama-model <model>      Ollama model name (default: deepseek-r1:latest)
+  --gemini-model <model>      Gemini model name (default: gemini-2.0-flash-lite)
+  --openai-model <model>      OpenAI model name (default: gpt-4o-mini)
   --list-providers            List available translation providers
   --verbose                   Enable verbose output for debugging
   --detect-source             Auto-detect source language instead of assuming English
@@ -195,9 +207,52 @@ translator-ai en.json -l fr -o fr.json --sort-keys
 # Verify all keys are present in the translation
 translator-ai en.json -l fr -o fr.json --check-keys
 
+# Use a different Gemini model
+translator-ai en.json -l es -o es.json --gemini-model gemini-2.5-flash
+
 # Combine features
 translator-ai src/**/*.json -l es,fr,de -o "{dir}/{name}.{lang}.json" \
   --detect-source --preserve-formats --stats --check-keys
+```
+
+### Available Gemini Models
+
+The `--gemini-model` option allows you to choose from various Gemini models. Popular options include:
+
+- `gemini-2.0-flash-lite` (default) - Fast and efficient for most translations
+- `gemini-2.5-flash` - Enhanced performance with newer capabilities
+- `gemini-pro` - More sophisticated understanding for complex translations
+- `gemini-1.5-pro` - Previous generation pro model
+- `gemini-1.5-flash` - Previous generation fast model
+
+Example usage:
+```bash
+# Use the latest flash model
+translator-ai en.json -l es -o es.json --gemini-model gemini-2.5-flash
+
+# Use the default lightweight model
+translator-ai en.json -l fr -o fr.json --gemini-model gemini-2.0-flash-lite
+```
+
+### Available OpenAI Models
+
+The `--openai-model` option allows you to choose from various OpenAI models. Popular options include:
+
+- `gpt-4o-mini` (default) - Cost-effective and fast for most translations
+- `gpt-4o` - Most capable model with advanced understanding
+- `gpt-4-turbo` - Previous generation flagship model
+- `gpt-3.5-turbo` - Fast and efficient for simpler translations
+
+Example usage:
+```bash
+# Use OpenAI with the default model
+translator-ai en.json -l es -o es.json --provider openai
+
+# Use GPT-4o for complex translations
+translator-ai en.json -l ja -o ja.json --provider openai --openai-model gpt-4o
+
+# Use GPT-3.5-turbo for faster, simpler translations
+translator-ai en.json -l fr -o fr.json --provider openai --openai-model gpt-3.5-turbo
 ```
 
 ### Translation Metadata
@@ -207,7 +262,7 @@ When enabled with the `--metadata` flag, translator-ai adds metadata to help tra
 ```json
 {
   "_translator_metadata": {
-    "tool": "translator-ai v1.0.10",
+    "tool": "translator-ai v1.1.0",
     "repository": "https://github.com/DatanoiseTV/translator-ai",
     "provider": "Google Gemini",
     "source_language": "English",
@@ -299,6 +354,11 @@ This ensures that:
 ### Google Gemini
 - **Pros**: Fast, accurate, handles large batches efficiently
 - **Cons**: Requires API key, has usage costs
+- **Available Models**:
+  - `gemini-2.0-flash-lite` (default) - Fastest, most cost-effective
+  - `gemini-pro` - Balanced performance
+  - `gemini-1.5-pro` - Advanced capabilities
+  - `gemini-1.5-flash` - Fast with good quality
 - **Best for**: Production use, large projects, when accuracy is critical
 
 ### Ollama (Local)
