@@ -9,7 +9,7 @@
   "scripts": {
     "start": "ts-node src/index.ts",
     "build": "tsc",
-    "postbuild": "chmod +x dist/index.js",
+    "postbuild": "test -f dist/index.js && chmod +x dist/index.js || echo 'Build output not found'",
     "prepublishOnly": "npm run build",
     "test": "jest",
     "test:coverage": "jest --coverage",
@@ -38,6 +38,12 @@
   "engines": {
     "node": ">=14.0.0"
   },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "commander": "^11.1.0",
