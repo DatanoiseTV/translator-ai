@@ -1,8 +1,9 @@
 import { TranslationProvider } from './base';
 import { GeminiTranslator } from './gemini';
 import { OllamaTranslator } from './ollama';
+import { OpenAITranslator } from './openai';
 
-export type TranslatorType = 'gemini' | 'ollama';
+export type TranslatorType = 'gemini' | 'ollama' | 'openai';
 
 export interface TranslatorConfig {
   type?: TranslatorType;
@@ -11,6 +12,8 @@ export interface TranslatorConfig {
   ollamaBaseUrl?: string;
   ollamaModel?: string;
   ollamaTimeout?: number;
+  openaiApiKey?: string;
+  openaiModel?: string;
 }
 
 export class TranslatorFactory {
@@ -34,6 +37,19 @@ export class TranslatorFactory {
           );
         }
         
+      case 'openai':
+        const openaiKey = config.openaiApiKey || process.env.OPENAI_API_KEY;
+        
+        if (!openaiKey) {
+          throw new Error(
+            'OpenAI API key not found. Either:\n' +
+            '1. Set OPENAI_API_KEY environment variable\n' +
+            '2. Use a different provider (gemini or ollama)'
+          );
+        }
+        
+        return new OpenAITranslator(openaiKey, config.openaiModel);
+        
       case 'gemini':
       default:
         const apiKey = config.geminiApiKey || process.env.GEMINI_API_KEY;
@@ -42,7 +58,8 @@ export class TranslatorFactory {
           throw new Error(
             'No translation provider available. Either:\n' +
             '1. Set GEMINI_API_KEY environment variable\n' +
-            '2. Use --provider ollama with Ollama running locally'
+            '2. Use --provider ollama with Ollama running locally\n' +
+            '3. Use --provider openai with OPENAI_API_KEY set'
           );
         }
         
@@ -56,6 +73,11 @@ export class TranslatorFactory {
       return 'gemini';
     }
     
+    // If OpenAI API key is provided, use OpenAI
+    if (config.openaiApiKey || process.env.OPENAI_API_KEY) {
+      return 'openai';
+    }
+    
     // Otherwise default to Ollama
     return 'ollama';
   }
@@ -66,6 +88,11 @@ export class TranslatorFactory {
     // Check Gemini
     if (process.env.GEMINI_API_KEY) {
       available.push('gemini (API key found)');
+    }
+    
+    // Check OpenAI
+    if (process.env.OPENAI_API_KEY) {
+      available.push('openai (API key found)');
     }
     
     // Check Ollama
