@@ -18,6 +18,7 @@ Fast and efficient JSON i18n translator supporting multiple AI providers (Google
 - **Cost Effective**: Minimizes API usage through smart caching and deduplication
 - **Language Detection**: Automatically detect source language instead of assuming English
 - **Multiple Target Languages**: Translate to multiple languages in a single command
+- **Translation Metadata**: Optionally include translation details in output files for tracking
 - **Dry Run Mode**: Preview what would be translated without making API calls
 - **Format Preservation**: Maintains URLs, emails, dates, numbers, and template variables unchanged
 
@@ -85,7 +86,7 @@ Arguments:
   inputFiles                   Path(s) to source JSON file(s) or glob patterns
 
 Options:
-  -l, --lang <langCode>       Target language code (required)
+  -l, --lang <langCodes>      Target language code(s), comma-separated for multiple
   -o, --output <pattern>      Output file path or pattern
   --stdout                    Output to stdout instead of file
   --stats                     Show detailed performance statistics
@@ -95,6 +96,11 @@ Options:
   --ollama-url <url>          Ollama API URL (default: http://localhost:11434)
   --ollama-model <model>      Ollama model name (default: deepseek-r1:latest)
   --list-providers            List available translation providers
+  --verbose                   Enable verbose output for debugging
+  --detect-source             Auto-detect source language instead of assuming English
+  --dry-run                   Preview what would be translated without making API calls
+  --preserve-formats          Preserve URLs, emails, numbers, dates, and other formats
+  --no-metadata               Disable adding metadata to output files
   -h, --help                  Display help
   -V, --version               Display version
 
@@ -178,10 +184,39 @@ translator-ai en.json -l es -o es.json --dry-run
 # Preserve formats (URLs, emails, dates, numbers, template variables)
 translator-ai app.json -l fr -o app-fr.json --preserve-formats
 
+# Include translation metadata (enabled by default)
+translator-ai en.json -l fr -o fr.json
+
+# Disable metadata for cleaner output
+translator-ai en.json -l fr -o fr.json --no-metadata
+
 # Combine features
 translator-ai src/**/*.json -l es,fr,de -o "{dir}/{name}.{lang}.json" \
   --detect-source --preserve-formats --stats
 ```
+
+### Translation Metadata
+
+By default, translator-ai adds metadata to help track translations:
+
+```json
+{
+  "_translator_metadata": {
+    "tool": "translator-ai v1.0.9",
+    "repository": "https://github.com/DatanoiseTV/translator-ai",
+    "provider": "Google Gemini",
+    "source_language": "English",
+    "target_language": "fr",
+    "timestamp": "2025-06-20T12:34:56.789Z",
+    "total_strings": 42,
+    "source_file": "en.json"
+  },
+  "greeting": "Bonjour",
+  "farewell": "Au revoir"
+}
+```
+
+Use `--no-metadata` to disable this feature.
 
 ### Supported Language Codes
 

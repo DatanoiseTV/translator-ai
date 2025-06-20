@@ -240,7 +240,8 @@ async function processSingleFile(
   translator: TranslationProvider,
   detectSource: boolean = false,
   dryRun: boolean = false,
-  preserveFormats: boolean = false
+  preserveFormats: boolean = false,
+  includeMetadata: boolean = true
 ): Promise<void> {
   const t = { start: performance.now(), last: performance.now() };
   const stats: PerformanceStats = {
@@ -428,7 +429,26 @@ async function processSingleFile(
     finalFlatMap.set(path, translatedString);
   }
   const translatedJson = unflattenObject(finalFlatMap);
-  const outputString = JSON.stringify(translatedJson, null, 2);
+  
+  // Add metadata using _comment convention
+  let outputJson = translatedJson;
+  if (includeMetadata) {
+    outputJson = {
+      "_translator_metadata": {
+        "tool": "translator-ai v1.0.9",
+        "repository": "https://github.com/DatanoiseTV/translator-ai",
+        "provider": translator.name,
+        "source_language": detectSource ? sourceLang : "English",
+        "target_language": lang,
+        "timestamp": new Date().toISOString(),
+        "total_strings": sourcePathMap.size,
+        "source_file": path.basename(inputFile)
+      },
+      ...translatedJson
+    };
+  }
+  
+  const outputString = JSON.stringify(outputJson, null, 2);
   stats.rebuildTime = performance.now() - t.last; t.last = performance.now();
   spinner.succeed('Rebuilding complete.');
 
@@ -461,7 +481,8 @@ async function processMultipleFiles(
   translator: TranslationProvider,
   detectSource: boolean = false,
   dryRun: boolean = false,
-  preserveFormats: boolean = false
+  preserveFormats: boolean = false,
+  includeMetadata: boolean = true
 ): Promise<void> {
   const t = { start: performance.now(), last: performance.now() };
   const stats: MultiFileStats = {
@@ -747,7 +768,26 @@ async function processMultipleFiles(
     }
 
     const translatedJson = unflattenObject(translatedFlatMap);
-    const outputString = JSON.stringify(translatedJson, null, 2);
+    
+    // Add metadata using _comment convention
+    let outputJson = translatedJson;
+    if (includeMetadata !== false) {
+      outputJson = {
+        "_translator_metadata": {
+          "tool": "translator-ai v1.0.9",
+          "repository": "https://github.com/DatanoiseTV/translator-ai",
+          "provider": translator.name,
+          "source_language": detectSource ? sourceLang : "English",
+          "target_language": lang,
+          "timestamp": new Date().toISOString(),
+          "total_strings": fileData.paths.size,
+          "source_file": path.basename(filePath)
+        },
+        ...translatedJson
+      };
+    }
+    
+    const outputString = JSON.stringify(outputJson, null, 2);
 
     if (stdout) {
       console.log(`\n=== ${path.basename(filePath)} ===`);
@@ -811,12 +851,14 @@ async function main() {
     .option('--detect-source', 'Auto-detect source language instead of assuming English')
     .option('--dry-run', 'Preview what would be translated without making API calls')
     .option('--preserve-formats', 'Preserve URLs, emails, numbers, dates, and other formats')
+    .option('--no-metadata', 'Disable adding metadata to output files')
     .parse(process.argv);
 
   const inputFiles = program.args;
   const { 
     lang, output, stdout, stats: showStats, cache, cacheFile,
-    provider, ollamaUrl, ollamaModel, detectSource, dryRun, verbose, preserveFormats: shouldPreserveFormats
+    provider, ollamaUrl, ollamaModel, detectSource, dryRun, verbose, preserveFormats: shouldPreserveFormats,
+    metadata: includeMetadata
   } = program.opts();
 
   if (!output && !stdout) {
@@ -865,9 +907,9 @@ async function main() {
       }
       
       if (isSingleFile) {
-        await processSingleFile(inputFiles[0], targetLang, output, stdout, showStats, cache, cacheFile, translator, detectSource, dryRun, shouldPreserveFormats);
+        await processSingleFile(inputFiles[0], targetLang, output, stdout, showStats, cache, cacheFile, translator, detectSource, dryRun, shouldPreserveFormats, includeMetadata);
       } else {
-        await processMultipleFiles(inputFiles, targetLang, output, stdout, showStats, cache, cacheFile, translator, detectSource, dryRun, shouldPreserveFormats);
+        await processMultipleFiles(inputFiles, targetLang, output, stdout, showStats, cache, cacheFile, translator, detectSource, dryRun, shouldPreserveFormats, includeMetadata);
       }
     }
   } catch (error) {
