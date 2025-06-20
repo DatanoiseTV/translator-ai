@@ -1,0 +1,50 @@
+{
+  "name": "translator-gemini",
+  "version": "1.0.0",
+  "description": "Fast and efficient JSON i18n translator powered by Google Gemini API with incremental caching support",
+  "main": "dist/index.js",
+  "bin": {
+    "translator-gemini": "dist/index.js"
+  },
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "build": "tsc",
+    "postbuild": "chmod +x dist/index.js",
+    "prepublishOnly": "npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "i18n",
+    "translation",
+    "gemini",
+    "json",
+    "localization",
+    "internationalization",
+    "cli",
+    "google-gemini"
+  ],
+  "author": "DatanoiseTV",
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DatanoiseTV/translator-gemini.git"
+  },
+  "bugs": {
+    "url": "https://github.com/DatanoiseTV/translator-gemini/issues"
+  },
+  "homepage": "https://github.com/DatanoiseTV/translator-gemini#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "commander": "^11.1.0",
+    "dotenv": "^16.3.1",
+    "ora": "^5.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
